@@ -1,4 +1,4 @@
-module github.com/example/supplychainalerts
+module github.com/rajasatyajit/SupplyChain
 
 go 1.22.5
 

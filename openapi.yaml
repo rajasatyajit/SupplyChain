@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: SupplyChainAlerts API
+  title: SupplyChain API
   version: 1.0.0
   description: Real-time supply chain disruption alerts
 servers:

@@ -1,4 +1,4 @@
-# SupplyChainAlerts API
+# SupplyChain API
 
 This repository contains an MVP implementation and design docs for a real-time supply chain disruption alerts service.
 
