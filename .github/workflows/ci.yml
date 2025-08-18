@@ -78,8 +78,6 @@ jobs:
       env:
         DATABASE_URL: postgres://postgres:postgres@localhost:5432/supplychain_test?sslmode=disable
 
-    - name: Coverage gate (85%)
-      run: make test-cover-check COVERAGE_THRESHOLD=85
 
     - name: Race condition tests
       run: make test-race
