@@ -126,6 +126,23 @@ test-coverage:
 	@echo "Coverage report: $(COVERAGE_DIR)/coverage.html"
 	@echo "Coverage summary: $(REPORTS_DIR)/coverage.txt"
 
+## cover: Alias to run coverage and print locations
+.PHONY: cover
+cover: test-coverage
+	@echo "Open HTML report: $(COVERAGE_DIR)/coverage.html"
+	@echo "Summary: $(REPORTS_DIR)/coverage.txt"
+
+## cover-all: Run coverage including integration tests (requires Docker)
+.PHONY: cover-all
+cover-all:
+	@echo "Running coverage including integration tests (requires Docker)..."
+	@mkdir -p $(COVERAGE_DIR) $(REPORTS_DIR)
+	$(GOTEST) -tags=integration -v -timeout=$(TEST_TIMEOUT) -coverpkg=./... -coverprofile=$(COVERAGE_DIR)/coverage.out -covermode=atomic ./...
+	$(GOCMD) tool cover -html=$(COVERAGE_DIR)/coverage.out -o $(COVERAGE_DIR)/coverage.html
+	$(GOCMD) tool cover -func=$(COVERAGE_DIR)/coverage.out > $(REPORTS_DIR)/coverage.txt
+	@echo "Coverage report: $(COVERAGE_DIR)/coverage.html"
+	@echo "Coverage summary: $(REPORTS_DIR)/coverage.txt"
+
 ## test-cover-check: Enforce minimum coverage threshold (default 85%)
 .PHONY: test-cover-check
 test-cover-check: test-coverage
