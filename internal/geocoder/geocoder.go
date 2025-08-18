@@ -15,7 +15,8 @@ type Geocoder struct {
 // New creates a new geocoder instance
 func New() *Geocoder {
 	return &Geocoder{
-		cityRegex: regexp.MustCompile(`(?i)\b(port of [a-z]+|[A-Z][a-z]+,?\s*[A-Z]{2})\b`),
+		// Match "Port of X Y" (case-insensitive for the phrase 'Port of') or "City, ST"
+		cityRegex: regexp.MustCompile(`\b((?i:port of)\s+[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?|[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*,\s*[A-Z]{2})\b`),
 	}
 }
 
@@ -69,8 +70,15 @@ func (g *Geocoder) extractRegionAndCountry(alert *models.Alert, location string)
 		"au":      "Australia",
 	}
 	
+	// Tokenize location to avoid substring collisions (e.g., "es" in "los angeles")
+	tokens := regexp.MustCompile(`[^a-z]+`).Split(locationLower, -1)
+	tokenSet := make(map[string]struct{}, len(tokens))
+	for _, tk := range tokens {
+		if tk == "" { continue }
+		tokenSet[tk] = struct{}{}
+	}
 	for pattern, country := range countryPatterns {
-		if strings.Contains(locationLower, pattern) {
+		if _, ok := tokenSet[pattern]; ok {
 			alert.Country = country
 			break
 		}

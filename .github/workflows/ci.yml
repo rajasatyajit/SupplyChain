@@ -1,0 +1,290 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+env:
+  GO_VERSION: '1.22'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: supplychain_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Install dependencies
+      run: |
+        go mod download
+        make deps
+
+    - name: Validate project structure
+      run: make validate
+
+    - name: Format check
+      run: |
+        make fmt
+        git diff --exit-code
+
+    - name: Lint
+      run: make lint
+
+    - name: Security scan
+      run: make security
+
+    - name: Vulnerability check
+      run: make vuln
+
+    - name: Unit tests
+      run: make test-coverage
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/supplychain_test?sslmode=disable
+
+    - name: Coverage gate (85%)
+      run: make test-cover-check COVERAGE_THRESHOLD=85
+
+    - name: Race condition tests
+      run: make test-race
+
+    - name: Integration tests
+      run: make test-integration
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/supplychain_test?sslmode=disable
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/coverage.out
+        flags: unittests
+        name: codecov-umbrella
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results
+        path: |
+          reports/
+          coverage/
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Build application
+      run: make build-all
+
+    - name: Generate size report
+      run: make size-report
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: binaries
+        path: build/
+
+  docker:
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    if: github.event_name != 'pull_request'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha,prefix={{branch}}-
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        build-args: |
+          VERSION=${{ github.ref_name }}
+          BUILD_TIME=${{ github.event.head_commit.timestamp }}
+          GIT_COMMIT=${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure kubectl
+      uses: azure/k8s-set-context@v3
+      with:
+        method: kubeconfig
+        kubeconfig: ${{ secrets.KUBE_CONFIG_STAGING }}
+
+    - name: Deploy to staging
+      run: |
+        sed 's|supplychain:latest|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:develop|g' deployments/kubernetes/deployment.yaml | \
+        sed 's|replicas: 3|replicas: 2|g' | \
+        kubectl apply -f -
+        kubectl rollout status deployment/supplychain
+
+    - name: Run smoke tests
+      run: |
+        kubectl port-forward service/supplychain-service 8080:80 &
+        sleep 10
+        curl -f http://localhost:8080/health || exit 1
+        curl -f http://localhost:8080/v1/health/ready || exit 1
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.event_name == 'release'
+    environment: production
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure kubectl
+      uses: azure/k8s-set-context@v3
+      with:
+        method: kubeconfig
+        kubeconfig: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
+
+    - name: Deploy to production
+      run: |
+        sed 's|supplychain:latest|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}|g' deployments/kubernetes/deployment.yaml | \
+        kubectl apply -f -
+        kubectl rollout status deployment/supplychain
+
+    - name: Run health checks
+      run: |
+        kubectl port-forward service/supplychain-service 8080:80 &
+        sleep 10
+        curl -f http://localhost:8080/health || exit 1
+        curl -f http://localhost:8080/v1/health/ready || exit 1
+        curl -f http://localhost:8080/v1/health/live || exit 1
+
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [test, build, docker]
+    if: always()
+
+    steps:
+    - name: Notify on success
+      if: ${{ needs.test.result == 'success' && needs.build.result == 'success' && needs.docker.result == 'success' }}
+      run: |
+        echo "✅ Pipeline completed successfully!"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Commit: ${{ github.sha }}"
+
+    - name: Notify on failure
+      if: ${{ needs.test.result == 'failure' || needs.build.result == 'failure' || needs.docker.result == 'failure' }}
+      run: |
+        echo "❌ Pipeline failed!"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Commit: ${{ github.sha }}"
+        exit 1

@@ -33,6 +33,8 @@ func (c *Classifier) Classify(alert *models.Alert) {
 
 // classifySeverity determines the severity level of an alert
 func (c *Classifier) classifySeverity(text string) string {
+	text = strings.ToLower(text)
+	
 	highSeverityKeywords := []string{
 		"strike", "shutdown", "closure", "blocked", "riot", 
 		"earthquake", "hurricane", "emergency", "critical",
@@ -56,6 +58,8 @@ func (c *Classifier) classifySeverity(text string) string {
 
 // classifySentiment determines the sentiment of an alert
 func (c *Classifier) classifySentiment(text string) string {
+	text = strings.ToLower(text)
+	
 	negativeKeywords := []string{
 		"disrupt", "risk", "shortage", "warning", "danger",
 		"threat", "crisis", "failure", "damage", "loss",
