@@ -8,8 +8,8 @@ import (
 
 func TestParseLevel(t *testing.T) {
 	tests := []struct {
-		in   string
-		out  slog.Level
+		in  string
+		out slog.Level
 	}{
 		{"debug", slog.LevelDebug},
 		{"info", slog.LevelInfo},

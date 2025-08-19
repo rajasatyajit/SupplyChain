@@ -142,7 +142,7 @@ func TestInferDisruption(t *testing.T) {
 func BenchmarkContainsAny(b *testing.B) {
 	text := "This is a long text message that contains various keywords and phrases that we need to search through for performance testing"
 	keywords := []string{"error", "warning", "failure", "critical", "emergency", "alert", "issue", "problem"}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		ContainsAny(text, keywords)
@@ -151,7 +151,7 @@ func BenchmarkContainsAny(b *testing.B) {
 
 func BenchmarkInferDisruption(b *testing.B) {
 	text := "Major port strike affecting rail and road transportation with air traffic delays"
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		InferDisruption(text)

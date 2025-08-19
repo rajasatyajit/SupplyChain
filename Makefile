@@ -383,7 +383,8 @@ uninstall:
 deps: lint-install
 	@echo "Installing development dependencies..."
 	go install golang.org/x/tools/cmd/goimports@latest
-	go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+	# Correct module path for gosec
+	go install github.com/securego/gosec/v2/cmd/gosec@latest
 	go install honnef.co/go/tools/cmd/staticcheck@latest
 	go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
 	@echo "Development dependencies installed"

@@ -41,12 +41,12 @@ func (m *MockStore) QueryAlerts(ctx context.Context, q models.AlertQuery) ([]mod
 			results = append(results, alert)
 		}
 	}
-	
+
 	// Apply limit
 	if q.Limit > 0 && len(results) > q.Limit {
 		results = results[:q.Limit]
 	}
-	
+
 	return results, nil
 }
 
@@ -144,7 +144,7 @@ func TestHandler_HealthEndpoints(t *testing.T) {
 func TestHandler_ReadinessCheck_Unhealthy(t *testing.T) {
 	store := NewMockStore()
 	store.SetHealthError(errors.New("database connection failed"))
-	
+
 	handler := NewHandler(store, "test-version", "test-build-time", "test-commit")
 
 	r := chi.NewRouter()
@@ -162,7 +162,7 @@ func TestHandler_ReadinessCheck_Unhealthy(t *testing.T) {
 
 func TestHandler_GetAlerts(t *testing.T) {
 	store := NewMockStore()
-	
+
 	// Setup test data
 	testAlerts := []models.Alert{
 		{
@@ -275,7 +275,7 @@ func TestHandler_GetAlerts(t *testing.T) {
 
 func TestHandler_GetAlert(t *testing.T) {
 	store := NewMockStore()
-	
+
 	testAlert := models.Alert{
 		ID:      "test-alert-1",
 		Source:  "test-source",
@@ -427,16 +427,16 @@ func TestHandler_ParseAlertQuery(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("GET", "/?"+tt.queryString, nil)
-			
+
 			query, err := handler.parseAlertQuery(req)
-			
+
 			if tt.expectError && err == nil {
 				t.Error("Expected error, got nil")
 			}
 			if !tt.expectError && err != nil {
 				t.Errorf("Expected no error, got %v", err)
 			}
-			
+
 			if !tt.expectError && tt.checkFields != nil {
 				if err := tt.checkFields(query); err != nil {
 					t.Error(err)

@@ -26,7 +26,7 @@ func TestLogging(t *testing.T) {
 	// Create test request
 	req := httptest.NewRequest("GET", "/test", nil)
 	req.Header.Set("User-Agent", "test-agent")
-	
+
 	// Add request ID to context (simulating chi middleware)
 	ctx := req.Context()
 	ctx = context.WithValue(ctx, middleware.RequestIDKey, "test-request-id")
@@ -93,12 +93,12 @@ func TestSecurity(t *testing.T) {
 
 	// Check security headers
 	expectedHeaders := map[string]string{
-		"X-Content-Type-Options":   "nosniff",
-		"X-Frame-Options":          "DENY",
-		"X-XSS-Protection":         "1; mode=block",
+		"X-Content-Type-Options":    "nosniff",
+		"X-Frame-Options":           "DENY",
+		"X-XSS-Protection":          "1; mode=block",
 		"Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-		"Content-Security-Policy":  "default-src 'self'",
-		"Referrer-Policy":          "strict-origin-when-cross-origin",
+		"Content-Security-Policy":   "default-src 'self'",
+		"Referrer-Policy":           "strict-origin-when-cross-origin",
 	}
 
 	for header, expectedValue := range expectedHeaders {
@@ -127,10 +127,10 @@ func TestRateLimit(t *testing.T) {
 	// Create test requests from same IP
 	req1 := httptest.NewRequest("GET", "/test", nil)
 	req1.RemoteAddr = "192.168.1.1:12345"
-	
+
 	req2 := httptest.NewRequest("GET", "/test", nil)
 	req2.RemoteAddr = "192.168.1.1:12346"
-	
+
 	req3 := httptest.NewRequest("GET", "/test", nil)
 	req3.RemoteAddr = "192.168.1.1:12347"
 
@@ -251,7 +251,7 @@ func TestCORS(t *testing.T) {
 	// Test wildcard origin
 	t.Run("Wildcard origin", func(t *testing.T) {
 		wildcardHandler := CORS([]string{"*"})(handler)
-		
+
 		req := httptest.NewRequest("GET", "/test", nil)
 		req.Header.Set("Origin", "https://any.com")
 		w := httptest.NewRecorder()

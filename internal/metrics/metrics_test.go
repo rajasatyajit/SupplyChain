@@ -35,14 +35,16 @@ func TestNoOpMetricsAndDelegates(t *testing.T) {
 	}
 }
 
-type httptestResponseRecorder struct{
+type httptestResponseRecorder struct {
 	header http.Header
 	status int
 }
 
 func (w *httptestResponseRecorder) Header() http.Header {
-	if w.header == nil { w.header = make(http.Header) }
+	if w.header == nil {
+		w.header = make(http.Header)
+	}
 	return w.header
 }
 func (w *httptestResponseRecorder) Write(b []byte) (int, error) { return len(b), nil }
-func (w *httptestResponseRecorder) WriteHeader(code int) { w.status = code }
+func (w *httptestResponseRecorder) WriteHeader(code int)        { w.status = code }

@@ -17,11 +17,11 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Host         string
-	Port         int
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-	IdleTimeout  time.Duration
+	Host                    string
+	Port                    int
+	ReadTimeout             time.Duration
+	WriteTimeout            time.Duration
+	IdleTimeout             time.Duration
 	GracefulShutdownTimeout time.Duration
 }
 
@@ -56,11 +56,11 @@ type MetricsConfig struct {
 func Load() (*Config, error) {
 	cfg := &Config{
 		Server: ServerConfig{
-			Host:         getEnv("SERVER_HOST", "0.0.0.0"),
-			Port:         getEnvInt("SERVER_PORT", 8080),
-			ReadTimeout:  getEnvDuration("SERVER_READ_TIMEOUT", 30*time.Second),
-			WriteTimeout: getEnvDuration("SERVER_WRITE_TIMEOUT", 30*time.Second),
-			IdleTimeout:  getEnvDuration("SERVER_IDLE_TIMEOUT", 120*time.Second),
+			Host:                    getEnv("SERVER_HOST", "0.0.0.0"),
+			Port:                    getEnvInt("SERVER_PORT", 8080),
+			ReadTimeout:             getEnvDuration("SERVER_READ_TIMEOUT", 30*time.Second),
+			WriteTimeout:            getEnvDuration("SERVER_WRITE_TIMEOUT", 30*time.Second),
+			IdleTimeout:             getEnvDuration("SERVER_IDLE_TIMEOUT", 120*time.Second),
 			GracefulShutdownTimeout: getEnvDuration("SERVER_GRACEFUL_SHUTDOWN_TIMEOUT", 30*time.Second),
 		},
 		Database: DatabaseConfig{

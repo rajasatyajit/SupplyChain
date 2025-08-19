@@ -11,10 +11,10 @@ var defaultLogger *slog.Logger
 // Init initializes the global logger
 func Init(level, format string) {
 	var handler slog.Handler
-	
+
 	logLevel := parseLevel(level)
 	opts := &slog.HandlerOptions{
-		Level: logLevel,
+		Level:     logLevel,
 		AddSource: true,
 	}
 

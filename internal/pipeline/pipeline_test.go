@@ -78,7 +78,7 @@ func (m *MockSource) Interval() time.Duration {
 func TestNew(t *testing.T) {
 	// Initialize logger for tests
 	logger.Init("error", "text")
-	
+
 	store := &MockStore{}
 	classifier := &MockClassifier{}
 	geocoder := &MockGeocoder{}

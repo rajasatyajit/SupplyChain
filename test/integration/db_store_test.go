@@ -23,7 +23,9 @@ import (
 func applyMigrations(ctx context.Context, pool *pgxpool.Pool, t *testing.T) {
 	t.Helper()
 	cwd, err := os.Getwd()
-	if err != nil { t.Fatalf("getwd: %v", err) }
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
 	// tests run from the package dir; locate repo root by walking up to find go.mod
 	root := cwd
 	for i := 0; i < 5; i++ {
@@ -34,10 +36,14 @@ func applyMigrations(ctx context.Context, pool *pgxpool.Pool, t *testing.T) {
 	}
 	path := filepath.Join(root, "scripts", "init.sql")
 	b, err := os.ReadFile(path)
-	if err != nil { t.Fatalf("read init.sql: %v", err) }
+	if err != nil {
+		t.Fatalf("read init.sql: %v", err)
+	}
 	// Execute as a single batch
 	_, err = pool.Exec(ctx, string(b))
-	if err != nil { t.Fatalf("apply migrations: %v", err) }
+	if err != nil {
+		t.Fatalf("apply migrations: %v", err)
+	}
 }
 
 func TestPostgresStore_WithContainer(t *testing.T) {
@@ -45,7 +51,7 @@ func TestPostgresStore_WithContainer(t *testing.T) {
 	defer cancel()
 
 	req := testcontainers.ContainerRequest{
-		Image:        "postgres:15-alpine",
+		Image: "postgres:15-alpine",
 		Env: map[string]string{
 			"POSTGRES_DB":       "supplychain",
 			"POSTGRES_USER":     "supplychain",
@@ -58,13 +64,19 @@ func TestPostgresStore_WithContainer(t *testing.T) {
 		ContainerRequest: req,
 		Started:          true,
 	})
-	if err != nil { t.Fatalf("start container: %v", err) }
+	if err != nil {
+		t.Fatalf("start container: %v", err)
+	}
 	t.Cleanup(func() { _ = pg.Terminate(context.Background()) })
 
 	host, err := pg.Host(ctx)
-	if err != nil { t.Fatalf("host: %v", err) }
+	if err != nil {
+		t.Fatalf("host: %v", err)
+	}
 	port, err := pg.MappedPort(ctx, "5432")
-	if err != nil { t.Fatalf("mapped port: %v", err) }
+	if err != nil {
+		t.Fatalf("mapped port: %v", err)
+	}
 
 	dsn := "postgres://supplychain:password@" + host + ":" + port.Port() + "/supplychain?sslmode=disable"
 
@@ -77,7 +89,9 @@ func TestPostgresStore_WithContainer(t *testing.T) {
 	}
 
 	db, err := database.New(ctx, cfg)
-	if err != nil { t.Fatalf("database.New: %v", err) }
+	if err != nil {
+		t.Fatalf("database.New: %v", err)
+	}
 	defer db.Close(ctx)
 
 	// Apply migrations
@@ -101,12 +115,20 @@ func TestPostgresStore_WithContainer(t *testing.T) {
 	}
 
 	res, err := st.QueryAlerts(ctx, models.AlertQuery{Sources: []string{"integration"}, Limit: 10})
-	if err != nil { t.Fatalf("QueryAlerts: %v", err) }
-	if len(res) == 0 { t.Fatalf("expected at least 1 alert, got 0") }
+	if err != nil {
+		t.Fatalf("QueryAlerts: %v", err)
+	}
+	if len(res) == 0 {
+		t.Fatalf("expected at least 1 alert, got 0")
+	}
 
 	one, err := st.GetAlert(ctx, "int-alert-1")
-	if err != nil { t.Fatalf("GetAlert: %v", err) }
-	if one == nil || one.ID != "int-alert-1" { t.Fatalf("unexpected alert: %+v", one) }
+	if err != nil {
+		t.Fatalf("GetAlert: %v", err)
+	}
+	if one == nil || one.ID != "int-alert-1" {
+		t.Fatalf("unexpected alert: %+v", one)
+	}
 }
 
 // dbpoolFromDB is a small helper to access the underlying pool for migrations in tests only

@@ -18,12 +18,13 @@ type Metrics interface {
 // NoOpMetrics provides a no-op implementation
 type NoOpMetrics struct{}
 
-func (m *NoOpMetrics) RecordHTTPRequest(method, endpoint string, statusCode int, duration time.Duration) {}
-func (m *NoOpMetrics) RecordAlertProcessed(source, status string)                                        {}
-func (m *NoOpMetrics) RecordPipelineRun(source string, duration time.Duration)                          {}
-func (m *NoOpMetrics) SetDBConnectionsActive(count float64)                                              {}
-func (m *NoOpMetrics) RecordDBQuery(operation, status string)                                           {}
-func (m *NoOpMetrics) Handler() http.Handler                                                             { return http.NotFoundHandler() }
+func (m *NoOpMetrics) RecordHTTPRequest(method, endpoint string, statusCode int, duration time.Duration) {
+}
+func (m *NoOpMetrics) RecordAlertProcessed(source, status string)              {}
+func (m *NoOpMetrics) RecordPipelineRun(source string, duration time.Duration) {}
+func (m *NoOpMetrics) SetDBConnectionsActive(count float64)                    {}
+func (m *NoOpMetrics) RecordDBQuery(operation, status string)                  {}
+func (m *NoOpMetrics) Handler() http.Handler                                   { return http.NotFoundHandler() }
 
 // Global metrics instance
 var globalMetrics Metrics = &NoOpMetrics{}
