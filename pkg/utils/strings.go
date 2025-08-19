@@ -15,7 +15,7 @@ func ContainsAny(text string, keywords []string) bool {
 // InferDisruption infers the disruption type from text
 func InferDisruption(text string) string {
 	text = strings.ToLower(text)
-switch {
+	switch {
 	case strings.Contains(text, "airport"):
 		return "air"
 	case strings.Contains(text, "air"):

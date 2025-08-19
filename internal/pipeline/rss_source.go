@@ -89,13 +89,13 @@ func (r *RSSSource) convertToAlerts(rss RSS) []models.Alert {
 
 	for _, item := range rss.Channel.Items {
 		alert := models.Alert{
-			Source:      r.name,
-			Title:       item.Title,
-			Summary:     item.Description,
-			URL:         item.Link,
-			DetectedAt:  time.Now().UTC(),
-			Confidence:  0.7, // Default confidence for RSS feeds
-			Raw:         fmt.Sprintf("%+v", item),
+			Source:     r.name,
+			Title:      item.Title,
+			Summary:    item.Description,
+			URL:        item.Link,
+			DetectedAt: time.Now().UTC(),
+			Confidence: 0.7, // Default confidence for RSS feeds
+			Raw:        fmt.Sprintf("%+v", item),
 		}
 
 		// Parse published date

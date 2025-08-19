@@ -70,7 +70,7 @@ func main() {
 
 	// Initialize pipeline
 	alertPipeline := pipeline.New(alertStore, alertClassifier, geo, cfg.Pipeline)
-	
+
 	// Start pipeline in background
 	go func() {
 		if err := alertPipeline.Run(ctx); err != nil {
@@ -80,7 +80,7 @@ func main() {
 
 	// Setup HTTP server
 	r := chi.NewRouter()
-	
+
 	// Global middleware
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -138,10 +138,10 @@ func main() {
 func startMetricsServer(port int, path string) {
 	mux := http.NewServeMux()
 	mux.Handle(path, metrics.Handler())
-	
+
 	addr := fmt.Sprintf(":%d", port)
 	logger.Info("Starting metrics server", "address", addr, "path", path)
-	
+
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		logger.Error("Metrics server failed", "error", err)
 	}

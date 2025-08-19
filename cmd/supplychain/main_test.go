@@ -13,7 +13,9 @@ import (
 // getFreePort returns an available TCP port
 func getFreePort(t *testing.T) int {
 	l, err := net.Listen("tcp", ":0")
-	if err != nil { t.Fatalf("listen: %v", err) }
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
 	defer l.Close()
 	return l.Addr().(*net.TCPAddr).Port
 }

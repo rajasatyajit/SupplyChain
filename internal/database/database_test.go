@@ -12,7 +12,7 @@ import (
 func TestNew_NoDatabase(t *testing.T) {
 	// Initialize logger for tests
 	logger.Init("error", "text")
-	
+
 	cfg := config.DatabaseConfig{
 		URL: "", // No database URL
 	}
@@ -88,7 +88,7 @@ func TestDB_Close(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	
+
 	// Should not panic when closing with no pool
 	db.Close(ctx)
 }

@@ -7,13 +7,13 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/sync/semaphore"
-	"golang.org/x/time/rate"
 	"github.com/rajasatyajit/SupplyChain/config"
 	"github.com/rajasatyajit/SupplyChain/internal/logger"
 	"github.com/rajasatyajit/SupplyChain/internal/metrics"
 	"github.com/rajasatyajit/SupplyChain/internal/models"
 	"github.com/rajasatyajit/SupplyChain/pkg/utils"
+	"golang.org/x/sync/semaphore"
+	"golang.org/x/time/rate"
 )
 
 // Source defines a pluggable data source implementation
@@ -329,4 +329,3 @@ func (p *Pipeline) IsRunning() bool {
 	defer p.mu.RUnlock()
 	return p.running
 }
-

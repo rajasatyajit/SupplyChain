@@ -7,15 +7,15 @@ import (
 
 func TestAlertQuery_Matches(t *testing.T) {
 	alert := Alert{
-		ID:          "test-alert-1",
-		Source:      "test-source",
-		Title:       "Test Alert",
-		Summary:     "Test summary",
-		DetectedAt:  time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC),
-		Severity:    "high",
-		Disruption:  "port_status",
-		Region:      "North America",
-		Country:     "United States",
+		ID:         "test-alert-1",
+		Source:     "test-source",
+		Title:      "Test Alert",
+		Summary:    "Test summary",
+		DetectedAt: time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC),
+		Severity:   "high",
+		Disruption: "port_status",
+		Region:     "North America",
+		Country:    "United States",
 	}
 
 	tests := []struct {

@@ -11,7 +11,7 @@ import (
 
 func TestRSSSource_Name(t *testing.T) {
 	source := NewRSSSource("Test Source", []string{"http://example.com/rss"})
-	
+
 	if source.Name() != "Test Source" {
 		t.Errorf("Expected name 'Test Source', got %s", source.Name())
 	}
@@ -19,7 +19,7 @@ func TestRSSSource_Name(t *testing.T) {
 
 func TestRSSSource_Interval(t *testing.T) {
 	source := NewRSSSource("Test Source", []string{"http://example.com/rss"})
-	
+
 	expected := 15 * time.Minute
 	if source.Interval() != expected {
 		t.Errorf("Expected interval %v, got %v", expected, source.Interval())
@@ -159,7 +159,7 @@ func TestRSSSource_FetchInvalidXML(t *testing.T) {
 
 func TestRSSSource_ConvertToAlerts(t *testing.T) {
 	source := NewRSSSource("Test Source", []string{})
-	
+
 	rss := RSS{
 		Channel: Channel{
 			Title:       "Test Channel",
