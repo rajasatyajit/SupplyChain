@@ -1,3 +1,10 @@
+-- Enable pgcrypto extension for gen_random_uuid
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Apply initial schema
+\i db/migrations/0001_auth_billing_usage.sql
+\i db/migrations/0002_plans.sql
+
 -- Database initialization script for SupplyChain application
 
 -- Create alerts table

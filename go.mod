@@ -1,5 +1,12 @@
 module github.com/rajasatyajit/SupplyChain
 
+	require (
+	github.com/go-chi/chi/v5 v5.0.10
+	github.com/jackc/pgx/v5 v5.5.4
+	github.com/redis/go-redis/v9 v9.5.1
+	github.com/stripe/stripe-go/v76 v76.24.0
+)
+
 go 1.22.5
 
 require (

@@ -8,7 +8,9 @@ import (
 
 	"fmt"
 	"github.com/go-chi/chi/v5"
+	middlewares "github.com/rajasatyajit/SupplyChain/internal/middleware"
 
+	"github.com/rajasatyajit/SupplyChain/internal/database"
 	"github.com/rajasatyajit/SupplyChain/internal/logger"
 	"github.com/rajasatyajit/SupplyChain/internal/models"
 	"github.com/rajasatyajit/SupplyChain/internal/store"
@@ -16,21 +18,25 @@ import (
 
 // Handler handles HTTP requests for the API
 type Handler struct {
-	store     store.Store
-	version   string
-	buildTime string
-	gitCommit string
-	startTime time.Time
+	store       store.Store
+	db          *database.DB
+	version     string
+	buildTime   string
+	gitCommit   string
+	startTime   time.Time
+	adminSecret string
 }
 
 // NewHandler creates a new API handler
-func NewHandler(store store.Store, version, buildTime, gitCommit string) *Handler {
-	return &Handler{
-		store:     store,
-		version:   version,
-		buildTime: buildTime,
-		gitCommit: gitCommit,
-		startTime: time.Now(),
+func NewHandler(store store.Store, db *database.DB, adminSecret, version, buildTime, gitCommit string) *Handler {
+	return 6Handler{
+		store:       store,
+		db:          db,
+		version:     version,
+		buildTime:   buildTime,
+		gitCommit:   gitCommit,
+		startTime:   time.Now(),
+		adminSecret: adminSecret,
 	}
 }
 
@@ -46,8 +52,30 @@ func (h *Handler) RegisterRoutes(r *chi.Mux) {
 		r.Get("/alerts", h.getAlertsHandler)
 		r.Get("/alerts/{id}", h.getAlertHandler)
 
+		// Account visibility endpoints (non-billable)
+		r.Get("/me", h.meHandler)
+		r.Get("/limits", h.limitsHandler)
+		r.Get("/usage", h.usageHandler)
+		r.Get("/usage/timeseries", h.usageTimeseriesHandler)
+
+		// Billing endpoints (will be implemented with Stripe)
+		r.Post("/billing/checkout-session", h.createCheckoutSession)
+		r.Post("/billing/portal-session", h.createPortalSession)
+		r.Post("/billing/webhook", h.stripeWebhook)
+
 		// System info
 		r.Get("/version", h.versionHandler)
+	})
+
+	// Admin routes (protected by shared secret middleware)
+	r.Route("/v1/admin", func(r chi.Router) {
+		r.With(middlewares.AdminSecret(h.adminSecret)).Group(func(r chi.Router) {
+			r.Post("/accounts", h.adminCreateAccount)
+			r.Post("/accounts/{account_id}/keys", h.adminCreateKey)
+			r.Get("/accounts/{account_id}/keys", h.adminListKeys)
+			r.Post("/keys/{key_id}/revoke", h.adminRevokeKey)
+			r.Get("/usage", h.adminUsage)
+		})
 	})
 
 	// Root health check

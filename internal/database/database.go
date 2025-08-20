@@ -19,6 +19,9 @@ type DB struct {
 	cfg  config.DatabaseConfig
 }
 
+// Config exposes config for dependent services
+func (d *DB) Config() *config.Config { return &config.Config{Database: d.cfg} }
+
 // New creates a new database connection
 func New(ctx context.Context, cfg config.DatabaseConfig) (*DB, error) {
 	if cfg.URL == "" {

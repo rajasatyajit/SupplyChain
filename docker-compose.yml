@@ -19,9 +19,13 @@ services:
       - METRICS_ENABLED=true
       - PIPELINE_RATE_LIMIT=5.0
       - PIPELINE_WORKER_COUNT=4
+      - AUTH_REQUIRE_API_KEYS=false
+      - REDIS_URL=redis://redis:6379
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
@@ -47,6 +51,13 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    restart: unless-stopped
 
   prometheus:
     image: prom/prometheus:latest

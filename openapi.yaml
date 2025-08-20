@@ -5,6 +5,32 @@ info:
   description: Real-time supply chain disruption alerts
 servers:
   - url: https://api.example.com
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: APIKey
+  schemas:
+    Alert:
+      type: object
+      properties:
+        id: { type: string }
+        source: { type: string }
+        title: { type: string }
+        summary: { type: string }
+        url: { type: string, format: uri }
+        detected_at: { type: string, format: date-time }
+        published_at: { type: string, format: date-time }
+        region: { type: string }
+        country: { type: string }
+        location: { type: string }
+        latitude: { type: number, format: double }
+        longitude: { type: number, format: double }
+        disruption: { type: string }
+        severity: { type: string, enum: [low, medium, high] }
+        sentiment: { type: string, enum: [negative, neutral, positive] }
+        confidence: { type: number, format: double }
 paths:
   /v1/health:
     get:
@@ -16,9 +42,113 @@ paths:
             text/plain:
               schema:
                 type: string
+  /v1/me:
+    get:
+      summary: Get plan and period for current API key
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Account info
+  /v1/limits:
+    get:
+      summary: Get per-endpoint limits for current plan
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Limits
+  /v1/usage:
+    get:
+      summary: Get current usage summary
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Usage summary
+  /v1/usage/timeseries:
+    get:
+      summary: Get usage time series for current account
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: query
+          name: bucket
+          schema: { type: string, enum: [day, hour] }
+        - in: query
+          name: start
+          schema: { type: string, format: date }
+        - in: query
+          name: end
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: Time series }
+  /v1/admin/usage:
+    get:
+      summary: Admin usage timeseries
+      parameters:
+        - in: query
+          name: account_id
+          schema: { type: string }
+        - in: query
+          name: bucket
+          schema: { type: string, enum: [day, hour] }
+        - in: query
+          name: start
+          schema: { type: string, format: date }
+        - in: query
+          name: end
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: Admin usage timeseries }
+  /v1/admin/usage/aggregates:
+    get:
+      summary: Admin usage aggregates
+      parameters:
+        - in: query
+          name: account_id
+          schema: { type: string }
+        - in: query
+          name: api_key_id
+          schema: { type: string }
+        - in: query
+          name: start
+          schema: { type: string, format: date }
+        - in: query
+          name: end
+          schema: { type: string, format: date }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0 }
+      responses:
+        '200': { description: Admin usage aggregates }
+  /v1/billing/checkout-session:
+    post:
+      summary: Create Stripe Checkout session
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '501': { description: Not Implemented }
+  /v1/billing/portal-session:
+    post:
+      summary: Create Stripe Billing Portal session
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '501': { description: Not Implemented }
+  /v1/billing/webhook:
+    post:
+      summary: Stripe webhook receiver
+      responses:
+        '501': { description: Not Implemented }
   /v1/alerts:
     get:
       summary: List alerts
+      security:
+        - ApiKeyAuth: []
       parameters:
         - in: query
           name: region
@@ -52,25 +182,4 @@ paths:
                       $ref: '#/components/schemas/Alert'
                   count:
                     type: integer
-components:
-  schemas:
-    Alert:
-      type: object
-      properties:
-        id: { type: string }
-        source: { type: string }
-        title: { type: string }
-        summary: { type: string }
-        url: { type: string, format: uri }
-        detected_at: { type: string, format: date-time }
-        published_at: { type: string, format: date-time }
-        region: { type: string }
-        country: { type: string }
-        location: { type: string }
-        latitude: { type: number, format: double }
-        longitude: { type: number, format: double }
-        disruption: { type: string }
-        severity: { type: string, enum: [low, medium, high] }
-        sentiment: { type: string, enum: [negative, neutral, positive] }
-        confidence: { type: number, format: double }
 

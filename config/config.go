@@ -14,6 +14,10 @@ type Config struct {
 	Pipeline PipelineConfig
 	Logging  LoggingConfig
 	Metrics  MetricsConfig
+	Auth     AuthConfig
+	Admin    AdminConfig
+	Redis    RedisConfig
+	Billing  BillingConfig
 }
 
 type ServerConfig struct {
@@ -52,6 +56,38 @@ type MetricsConfig struct {
 	Path    string
 }
 
+type AuthConfig struct {
+	RequireAPIKeys   bool
+	KeyHeader        string // default: Authorization Bearer <key>
+	AgentHeaderName  string // optional: X-Client-Type
+	EnableAgentHeader bool  // if true, require AgentHeaderName to be one of [agent,human]
+}
+
+type RedisConfig struct {
+	URL      string
+	Password string
+	DB       int
+}
+
+type AdminConfig struct {
+	AdminSecret string
+}
+
+type BillingConfig struct {
+	StripePublicKey string
+	StripeSecretKey string
+	StripeWebhookSecret string
+	PriceLiteMonthly string
+	PriceLiteAnnual  string
+	PriceProMonthly  string
+	PriceProAnnual   string
+	PriceOverageMetered string
+	CheckoutSuccessURL string
+	CheckoutCancelURL  string
+	PortalReturnURL    string
+	OveragePricePerRequestUSD float64 // e.g., 0.000033 for 0.0033 cents
+}
+
 // Load loads configuration from environment variables with sensible defaults
 func Load() (*Config, error) {
 	cfg := &Config{
@@ -85,6 +121,34 @@ func Load() (*Config, error) {
 			Enabled: getEnvBool("METRICS_ENABLED", true),
 			Port:    getEnvInt("METRICS_PORT", 9090),
 			Path:    getEnv("METRICS_PATH", "/metrics"),
+		},
+		Auth: AuthConfig{
+			RequireAPIKeys:    getEnvBool("AUTH_REQUIRE_API_KEYS", false),
+			KeyHeader:         getEnv("AUTH_KEY_HEADER", "Authorization"),
+			AgentHeaderName:   getEnv("AUTH_AGENT_HEADER", "X-Client-Type"),
+			EnableAgentHeader: getEnvBool("AUTH_ENABLE_AGENT_HEADER", true),
+		},
+		Redis: RedisConfig{
+			URL:      getEnv("REDIS_URL", ""),
+			Password: getEnv("REDIS_PASSWORD", ""),
+			DB:       getEnvInt("REDIS_DB", 0),
+		},
+		Admin: AdminConfig{
+			AdminSecret: getEnv("ADMIN_SECRET", ""),
+		},
+		Billing: BillingConfig{
+			StripePublicKey:        getEnv("STRIPE_PUBLIC_KEY", ""),
+			StripeSecretKey:        getEnv("STRIPE_SECRET_KEY", ""),
+			StripeWebhookSecret:    getEnv("STRIPE_WEBHOOK_SECRET", ""),
+			PriceLiteMonthly:       getEnv("STRIPE_PRICE_LITE_MONTHLY", ""),
+			PriceLiteAnnual:        getEnv("STRIPE_PRICE_LITE_ANNUAL", ""),
+			PriceProMonthly:        getEnv("STRIPE_PRICE_PRO_MONTHLY", ""),
+			PriceProAnnual:         getEnv("STRIPE_PRICE_PRO_ANNUAL", ""),
+			PriceOverageMetered:    getEnv("STRIPE_PRICE_OVERAGE_METERED", ""),
+			CheckoutSuccessURL:     getEnv("STRIPE_CHECKOUT_SUCCESS_URL", "https://dashboard.example.com/billing/success"),
+			CheckoutCancelURL:      getEnv("STRIPE_CHECKOUT_CANCEL_URL", "https://dashboard.example.com/billing/cancel"),
+			PortalReturnURL:        getEnv("STRIPE_PORTAL_RETURN_URL", "https://dashboard.example.com/billing"),
+			OveragePricePerRequestUSD: getEnvFloat("BILLING_OVERAGE_PRICE_PER_REQUEST_USD", 0.000033),
 		},
 	}
 

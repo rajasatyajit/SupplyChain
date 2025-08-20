@@ -4,9 +4,12 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/rajasatyajit/SupplyChain/config"
+	"github.com/rajasatyajit/SupplyChain/internal/auth"
 	"github.com/rajasatyajit/SupplyChain/internal/logger"
 	"github.com/rajasatyajit/SupplyChain/internal/metrics"
 )
@@ -76,6 +79,64 @@ func Security(next http.Handler) http.Handler {
 	})
 }
 
+// APIKeyAuth enforces API key authentication when enabled via configuration.
+// It expects Authorization: Bearer <api_key> by default. Optionally enforces an agent/human header.
+func APIKeyAuth(cfg config.AuthConfig) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !cfg.RequireAPIKeys {
+				// Pass-through when disabled
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Check header presence
+			raw := r.Header.Get(cfg.KeyHeader)
+			if raw == "" {
+				http.Error(w, "Missing API key", http.StatusUnauthorized)
+				return
+			}
+			var key string
+			if strings.HasPrefix(strings.ToLower(raw), "bearer ") {
+				key = strings.TrimSpace(raw[len("Bearer "):])
+			} else {
+				// Allow raw key in header for flexibility
+				key = strings.TrimSpace(raw)
+			}
+			if key == "" {
+				http.Error(w, "Invalid API key", http.StatusUnauthorized)
+				return
+			}
+
+			// Optional client type header enforcement
+			if cfg.EnableAgentHeader {
+				ct := r.Header.Get(cfg.AgentHeaderName)
+				if ct != "agent" && ct != "human" {
+					http.Error(w, "Invalid client type", http.StatusUnauthorized)
+					return
+				}
+			}
+
+			// Verify key and attach principal (placeholder implementation)
+			clientType := r.Header.Get(cfg.AgentHeaderName)
+			principal, err := auth.VerifyAPIKey(r, key, clientType)
+			if err != nil || principal == nil {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+			ctx := auth.WithPrincipal(r.Context(), principal)
+			r = r.WithContext(ctx)
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// write429 writes Too Many Requests
+func write429(w http.ResponseWriter) {
+	http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+}
+
 // RateLimit provides rate limiting (basic implementation)
 func RateLimit(requestsPerMinute int) func(http.Handler) http.Handler {
 	// This is a simple in-memory rate limiter
@@ -111,6 +172,23 @@ func RateLimit(requestsPerMinute int) func(http.Handler) http.Handler {
 			// Add current request
 			clients[clientIP] = append(clients[clientIP], now)
 
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// AdminSecret protects admin routes via a simple shared secret
+func AdminSecret(secret string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if secret == "" {
+				http.Error(w, "admin not configured", http.StatusForbidden)
+				return
+			}
+			if r.Header.Get("X-Admin-Secret") != secret {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
 			next.ServeHTTP(w, r)
 		})
 	}

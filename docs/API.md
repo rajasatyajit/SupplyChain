@@ -12,13 +12,25 @@ https://api.supplychain.example.com/v1
 
 ## Authentication
 
-Currently, the API does not require authentication. In production, you would implement API keys, OAuth, or JWT tokens.
+Use API keys via the Authorization header. Keys can be created and managed in your dashboard.
+
+Headers:
+- Authorization: Bearer <API_KEY>
+- X-Client-Type: agent or human (recommended; helps us tailor limits and guidance)
+
+Trials: New accounts receive 10 API calls total across endpoints before requiring a paid plan.
 
 ## Rate Limiting
 
-The API implements rate limiting to ensure fair usage:
-- 100 requests per minute per IP address
-- Rate limit headers are included in responses
+Rate limits are per API key and per endpoint. Plans define both per-minute burst and monthly quotas.
+- Lite: 20 requests/min per endpoint, up to 450,000 requests/month per API key
+- Pro: 60 requests/min per endpoint, up to 1,350,000 requests/month per API key
+- Overage: Optional. If enabled, requests beyond monthly quota are billed at $0.000033 per request.
+
+On limit exceed, you may receive 429 Too Many Requests. Responses include headers:
+- X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset
+- X-Quota-Limit, X-Quota-Remaining, X-Quota-Reset
+- Retry-After (on 429)
 
 ## Health Checks
 

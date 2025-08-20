@@ -16,10 +16,13 @@ import (
 	"github.com/rajasatyajit/SupplyChain/internal/database"
 	"github.com/rajasatyajit/SupplyChain/internal/geocoder"
 	"github.com/rajasatyajit/SupplyChain/internal/logger"
+	"github.com/rajasatyajit/SupplyChain/internal/auth"
 	"github.com/rajasatyajit/SupplyChain/internal/metrics"
 	middlewares "github.com/rajasatyajit/SupplyChain/internal/middleware"
 	"github.com/rajasatyajit/SupplyChain/internal/pipeline"
 	"github.com/rajasatyajit/SupplyChain/internal/store"
+	"github.com/rajasatyajit/SupplyChain/internal/ratelimit"
+	"github.com/rajasatyajit/SupplyChain/internal/usage"
 )
 
 // Version information (set by build)
@@ -64,6 +67,9 @@ func main() {
 	// Initialize store
 	alertStore := store.New(db)
 
+	// Attach DB to base context for auth lookups
+	ctx = auth.WithDB(ctx, db)
+
 	// Initialize AI components
 	alertClassifier := classifier.New()
 	geo := geocoder.New()
@@ -90,9 +96,50 @@ func main() {
 	r.Use(middleware.Timeout(cfg.Server.ReadTimeout))
 	r.Use(middlewares.Security)
 
+	// API Key auth (feature-flagged)
+	r.Use(middlewares.APIKeyAuth(cfg.Auth))
+
+	// Redis-backed rate/quota if configured, else fallback to in-memory
+	var rlManager *ratelimit.Manager
+	if cfg.Redis.URL != "" {
+		mgr, err := ratelimit.NewManager(cfg.Redis.URL)
+		if err == nil {
+			rlManager = mgr
+			logger.Info("Redis rate limiter enabled")
+		} else {
+			logger.Error("Failed to init Redis limiter, using in-memory", "error", err)
+		}
+	}
+	if rlManager != nil {
+		// Inject subscription checker using DB
+		middlewares.SetSubscriptionChecker(func(ctx interface{}, accountID string) bool {
+			row := db.QueryRow(context.Background(), "SELECT 1 FROM subscriptions WHERE account_id=$1 AND status IN ('active','trialing') LIMIT 1", accountID)
+			var one int
+			if s, ok := row.(interface{ Scan(dest ...any) error }); ok {
+				if err := s.Scan(&one); err == nil { return true }
+			}
+			return false
+		})
+		r.Use(middlewares.RedisRateQuotaEnforcer(rlManager))
+	} else {
+		r.Use(middlewares.RateQuotaEnforcer())
+	}
+
+	// Wrap admin subrouter with admin secret if configured
+	if cfg.Admin.AdminSecret != "" {
+		// create a new subrouter for admin to apply middleware; here we rely on route-level protection in handlers
+	}
+
 	// Initialize API handlers
-	apiHandler := api.NewHandler(alertStore, Version, BuildTime, GitCommit)
+	apiHandler := api.NewHandler(alertStore, db, cfg.Admin.AdminSecret, Version, BuildTime, GitCommit)
+	// pass limiter to api package for usage endpoint access
+	api.SetRateLimiter(rlManager)
 	apiHandler.RegisterRoutes(r)
+
+	// Start usage aggregator (flush Redis to Postgres)
+	if rlManager != nil {
+		usage.StartAggregator(ctx, db, rlManager)
+	}
 
 	// Metrics endpoint
 	if cfg.Metrics.Enabled {
