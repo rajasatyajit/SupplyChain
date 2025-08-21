@@ -1,20 +1,19 @@
 package api
 
-import "sync"
+import (
+	"net/http"
+	"sync"
+	"time"
+
+	"github.com/rajasatyajit/SupplyChain/internal/auth"
+	"github.com/rajasatyajit/SupplyChain/internal/ratelimit"
+)
 
 var rlOnce sync.Once
 var rlGlobal *ratelimit.Manager
 
 func setRateLimiter(m *ratelimit.Manager) { rlOnce.Do(func(){ rlGlobal = m }) }
 func getRateLimiter() *ratelimit.Manager { return rlGlobal }
-
-import (
-	"net/http"
-	"time"
-
-	"github.com/rajasatyajit/SupplyChain/internal/auth"
-	"github.com/rajasatyajit/SupplyChain/internal/ratelimit"
-)
 
 // meHandler returns plan and period info for the calling API key
 func (h *Handler) meHandler(w http.ResponseWriter, r *http.Request) {

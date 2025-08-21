@@ -11,11 +11,11 @@ import (
 	"github.com/rajasatyajit/SupplyChain/internal/auth"
 	"github.com/rajasatyajit/SupplyChain/internal/billing"
 	stripe "github.com/stripe/stripe-go/v76"
-	"github.com/stripe/stripe-go/v76/usageRecord"
+	"github.com/stripe/stripe-go/v76/usagerecord"
 	"github.com/stripe/stripe-go/v76/webhook"
 )
 
-// createCheckoutSession starts a Stripe Checkout session
+// createCheckoutSession starts a Checkout session using the appropriate provider (Stripe default, Razorpay for India/domestic)
 func (h *Handler) createCheckoutSession(w http.ResponseWriter, r *http.Request) {
 	p := auth.GetPrincipal(r.Context())
 	if p == nil { h.writeErrorResponse(w, r, http.StatusUnauthorized, "unauthorized"); return }
@@ -30,13 +30,14 @@ func (h *Handler) createCheckoutSession(w http.ResponseWriter, r *http.Request) 
 	}
 	if body.Interval == "" { body.Interval = "month" }
 
-	bs := billing.NewService(h.db.Config().Billing, h.db)
-	url, err := bs.CreateCheckoutSession(r.Context(), p.AccountID, strings.ToLower(body.PlanCode), strings.ToLower(body.Interval), body.Overage)
-	if err != nil {
-		h.writeErrorResponse(w, r, http.StatusInternalServerError, err.Error())
-		return
-	}
-	h.writeJSONResponse(w, http.StatusOK, map[string]string{"url": url})
+	// Provider selection: explicit ?provider=razorpay or header X-Country=IN routes to Razorpay; otherwise Stripe
+	provider := strings.ToLower(r.URL.Query().Get("provider"))
+	country := strings.ToUpper(r.Header.Get("X-Country"))
+useRazorpay := provider == "razorpay" || country == "IN"
+	prov := selectProvider(h, useRazorpay)
+	resp, err := prov.CreateCheckout(r.Context(), p.AccountID, strings.ToLower(body.PlanCode), strings.ToLower(body.Interval), body.Overage)
+	if err != nil { h.writeErrorResponse(w, r, http.StatusInternalServerError, err.Error()); return }
+	h.writeJSONResponse(w, http.StatusOK, resp)
 }
 
 // createPortalSession creates a Stripe Billing Portal session
@@ -59,6 +60,14 @@ func (h *Handler) createPortalSession(w http.ResponseWriter, r *http.Request) {
 	h.writeJSONResponse(w, http.StatusOK, map[string]string{"url": url})
 }
 
+var meterUsageFunc = meteredUsageCreate
+
+// SetMeterUsageFunc allows tests to override the metered usage creation function
+func SetMeterUsageFunc(f func(subscriptionItemID string, quantity int64) (string, error)) { meterUsageFunc = f }
+
+// GetMeterUsageFunc returns the current metered usage creation function
+func GetMeterUsageFunc() func(string, int64) (string, error) { return meterUsageFunc }
+
 func meteredUsageCreate(subscriptionItemID string, quantity int64) (string, error) {
 	params := &stripe.UsageRecordParams{
 		SubscriptionItem: stripe.String(subscriptionItemID),
@@ -66,7 +75,7 @@ func meteredUsageCreate(subscriptionItemID string, quantity int64) (string, erro
 		Timestamp:        stripe.Int64(time.Now().Unix()),
 		Action:           stripe.String(string(stripe.UsageRecordActionIncrement)),
 	}
-	ur, err := usageRecord.New(params)
+ur, err := usagerecord.New(params)
 	if err != nil { return "", err }
 	return ur.ID, nil
 }
@@ -135,16 +144,20 @@ case "invoice.finalized":
 						if overUnits > 0 {
 							// find metered item price on the subscription
 							var meteredItemID string
-							for _, li := range inv.Lines.Data {
-								if li.Price != nil && li.Price.ID == h.db.Config().Billing.PriceOverageMetered {
-									meteredItemID = li.SubscriptionItem
+overPrice := h.db.Config().Billing.PriceOverageMetered
+if overPrice == "" { overPrice = os.Getenv("STRIPE_PRICE_OVERAGE_METERED") }
+	for _, li := range inv.Lines.Data {
+								if li.Price != nil && li.Price.ID == overPrice {
+									if li.SubscriptionItem != nil {
+										meteredItemID = li.SubscriptionItem.ID
+									}
 									break
 								}
 							}
 							if meteredItemID != "" {
 								// Report usage as one record at period end
 								// For simplicity, report now; Stripe will attribute to current period
-								_, _ = meteredUsageCreate(meteredItemID, int64(overUnits))
+								_, _ = meterUsageFunc(meteredItemID, int64(overUnits))
 							}
 						}
 					}
@@ -157,5 +170,37 @@ case "invoice.finalized":
 			h.db.Exec(r.Context(), "UPDATE subscriptions SET status='canceled', updated_at=now() WHERE stripe_subscription_id=$1", sub.ID)
 		}
 	}
+	w.WriteHeader(http.StatusOK)
+}
+
+// helper: select provider based on routing flag
+func selectProvider(h *Handler, useRazorpay bool) billing.Provider {
+	if useRazorpay {
+return billing.NewRazorpay(h.billingCfg)
+	}
+	// default Stripe
+	svc := billing.NewService(h.db.Config().Billing, h.db)
+	return billing.NewStripeProvider(svc)
+}
+
+// razorpayWebhook receives Razorpay events with HMAC verification
+func (h *Handler) razorpayWebhook(w http.ResponseWriter, r *http.Request) {
+	body, _ := ioutil.ReadAll(r.Body)
+rp := billing.NewRazorpay(h.billingCfg)
+	if err := rp.VerifyWebhook(r, body); err != nil {
+		h.writeErrorResponse(w, r, http.StatusBadRequest, "invalid signature")
+		return
+	}
+typ, payload, err := rp.ParseWebhook(body)
+	if err != nil {
+		h.writeErrorResponse(w, r, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	_ = payload
+	if err := rp.HandleWebhook(r.Context(), h.db, body); err != nil {
+		h.writeErrorResponse(w, r, http.StatusInternalServerError, err.Error())
+		return
+	}
+	_ = typ
 	w.WriteHeader(http.StatusOK)
 }

@@ -22,13 +22,14 @@ func StartAggregator(ctx context.Context, db *database.DB, rl *ratelimit.Manager
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				flushOnce(ctx, db, rl)
+				FlushOnce(ctx, db, rl)
 			}
 		}
 	}()
 }
 
-func flushOnce(ctx context.Context, db *database.DB, rl *ratelimit.Manager) {
+// FlushOnce exposes a single aggregation cycle for tests and ops
+func FlushOnce(ctx context.Context, db *database.DB, rl *ratelimit.Manager) {
 	repo := auth.NewRepository(db)
 	pairs, err := repo.ListAllActiveAPIKeys(ctx)
 	if err != nil { logger.Error("usage flush: list keys failed", "error", err); return }

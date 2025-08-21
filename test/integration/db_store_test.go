@@ -47,6 +47,9 @@ func applyMigrations(ctx context.Context, pool *pgxpool.Pool, t *testing.T) {
 }
 
 func TestPostgresStore_WithContainer(t *testing.T) {
+	if !containersAvailable() {
+		t.Skip("container runtime not available; skipping container-based integration test")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 

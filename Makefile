@@ -1,3 +1,43 @@
+# SupplyChain Makefile additions
+.PHONY: test test-integration lint fmt coverage coverage-html
+
+GO ?= go
+
+lint:
+	$(GO) vet ./...
+
+fmt:
+	@test -z "$(shell gofmt -l .)" || (echo 'Please run gofmt on the following files:' && gofmt -l . && exit 1)
+
+test:
+	$(GO) test ./... -v
+
+coverage:
+	$(GO) test ./... -coverprofile=coverage.out -covermode=atomic
+	@$(GO) tool cover -func=coverage.out | tail -n 1
+
+coverage-html: coverage
+	@$(GO) tool cover -html=coverage.out -o coverage.html
+	@echo "Open coverage.html in your browser"
+
+test-integration:
+	@echo "Requires DATABASE_URL and REDIS_URL"
+	$(GO) test ./test/integration -v
+
+## itest-local: Run integration tests locally with docker-compose override
+.PHONY: itest-local
+itest-local:
+	@echo "Starting local Postgres and Redis via docker-compose override..."
+	@docker-compose -f docker-compose.override.test.yml up -d
+	@sleep 4
+	@echo "Running integration tests..."
+	@DATABASE_URL=postgres://supplychain:password@localhost:5432/supplychain?sslmode=disable \
+	REDIS_URL=redis://localhost:6379 \
+	$(GO) test ./test/integration -v || (docker-compose -f docker-compose.override.test.yml down; exit 1)
+	@echo "Shutting down services..."
+	@docker-compose -f docker-compose.override.test.yml down
+	@echo "Integration tests completed"
+
 # Makefile for SupplyChain Microservice
 
 # Variables

@@ -26,3 +26,9 @@ Setup steps:
 Notes:
 - On invoice.finalized, we compute overage units based on Redis usage totals and report them to the metered item.
 - Trial: capped at 10 total calls until subscription is trialing/active.
+
+Razorpay (optional, India domestic)
+- Configure RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET.
+- To route checkout to Razorpay, pass provider=razorpay in query OR set header X-Country: IN.
+- Webhook: POST /v1/billing/razorpay/webhook (signature verification to be completed; scaffold in place).
+- Typical flow: server creates order (or returns checkout parameters), front-end completes payment via hosted checkout, webhook confirms and maps to local subscription.

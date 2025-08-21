@@ -136,6 +136,9 @@ func main() {
 	api.SetRateLimiter(rlManager)
 	apiHandler.RegisterRoutes(r)
 
+	// Serve admin UI static files at /admin (owner will input secret in page)
+	r.Handle("GET /admin/*", http.StripPrefix("/admin/", http.FileServer(http.Dir("admin-ui"))))
+
 	// Start usage aggregator (flush Redis to Postgres)
 	if rlManager != nil {
 		usage.StartAggregator(ctx, db, rlManager)

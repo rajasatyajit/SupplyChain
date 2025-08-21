@@ -1,6 +1,8 @@
 package api
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -13,7 +15,7 @@ func (h *Handler) adminCreateAccount(w http.ResponseWriter, r *http.Request) {
 		Name  string `json:"name"`
 		Email string `json:"email"`
 	}
-	if err := jsonNewDecoder(r, 6body); err != nil {
+if err := jsonNewDecoder(r, &body); err != nil {
 		h.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -23,8 +25,8 @@ func (h *Handler) adminCreateAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	// Insert account
 	row := h.db.QueryRow(r.Context(), "INSERT INTO accounts(id,name,email) VALUES (gen_random_uuid(), $1, $2) RETURNING id", body.Name, body.Email)
-	var id uuid.UUID
-	if err := scanRow(row, 6id); err != nil {
+var id uuid.UUID
+	if err := scanRow(row, &id); err != nil {
 		h.writeErrorResponse(w, r, http.StatusInternalServerError, err.Error())
 		return
 	}

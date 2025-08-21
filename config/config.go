@@ -86,6 +86,16 @@ type BillingConfig struct {
 	CheckoutCancelURL  string
 	PortalReturnURL    string
 	OveragePricePerRequestUSD float64 // e.g., 0.000033 for 0.0033 cents
+
+	// Razorpay (optional) for India domestic rails
+	RazorpayKeyID     string
+	RazorpayKeySecret string
+	RazorpayWebhookSecret string
+	RazorpayCurrency string // default INR
+	RazorpayAmountLiteMonthlyPaisa int64
+	RazorpayAmountLiteAnnualPaisa int64
+	RazorpayAmountProMonthlyPaisa int64
+	RazorpayAmountProAnnualPaisa int64
 }
 
 // Load loads configuration from environment variables with sensible defaults
@@ -149,6 +159,15 @@ func Load() (*Config, error) {
 			CheckoutCancelURL:      getEnv("STRIPE_CHECKOUT_CANCEL_URL", "https://dashboard.example.com/billing/cancel"),
 			PortalReturnURL:        getEnv("STRIPE_PORTAL_RETURN_URL", "https://dashboard.example.com/billing"),
 			OveragePricePerRequestUSD: getEnvFloat("BILLING_OVERAGE_PRICE_PER_REQUEST_USD", 0.000033),
+
+			RazorpayKeyID:          getEnv("RAZORPAY_KEY_ID", ""),
+			RazorpayKeySecret:      getEnv("RAZORPAY_KEY_SECRET", ""),
+			RazorpayWebhookSecret:  getEnv("RAZORPAY_WEBHOOK_SECRET", ""),
+			RazorpayCurrency:       getEnv("RAZORPAY_CURRENCY", "INR"),
+			RazorpayAmountLiteMonthlyPaisa: getEnvInt64("RAZORPAY_AMOUNT_LITE_MONTHLY_PAISA", 49900),
+			RazorpayAmountLiteAnnualPaisa:  getEnvInt64("RAZORPAY_AMOUNT_LITE_ANNUAL_PAISA", 499000),
+			RazorpayAmountProMonthlyPaisa:  getEnvInt64("RAZORPAY_AMOUNT_PRO_MONTHLY_PAISA", 199900),
+			RazorpayAmountProAnnualPaisa:   getEnvInt64("RAZORPAY_AMOUNT_PRO_ANNUAL_PAISA", 1999000),
 		},
 	}
 
@@ -193,6 +212,15 @@ func getEnvInt(key string, defaultValue int) int {
 func getEnvFloat(key string, defaultValue float64) float64 {
 	if value := os.Getenv(key); value != "" {
 		if parsed, err := strconv.ParseFloat(value, 64); err == nil {
+			return parsed
+		}
+	}
+	return defaultValue
+}
+
+func getEnvInt64(key string, defaultValue int64) int64 {
+	if value := os.Getenv(key); value != "" {
+		if parsed, err := strconv.ParseInt(value, 10, 64); err == nil {
 			return parsed
 		}
 	}

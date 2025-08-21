@@ -10,13 +10,21 @@ import (
 )
 
 // Manager provides Redis-backed rate limiting and quota accounting
- type Manager struct {
+type Manager struct {
 	redis *redis.Client
 	// monthly limits per plan (temporary; load from DB later)
 	liteRPM          int
 	liteMonthlyQuota int
 	proRPM           int
 	proMonthlyQuota  int
+}
+
+// SetPlanLimits allows tests to override plan limits
+func (m *Manager) SetPlanLimits(liteRPM, liteMonthly, proRPM, proMonthly int) {
+	m.liteRPM = liteRPM
+	m.liteMonthlyQuota = liteMonthly
+	m.proRPM = proRPM
+	m.proMonthlyQuota = proMonthly
 }
 
 func NewManager(redisURL string) (*Manager, error) {

@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	middlewares "github.com/rajasatyajit/SupplyChain/internal/middleware"
 
+	"github.com/rajasatyajit/SupplyChain/config"
 	"github.com/rajasatyajit/SupplyChain/internal/database"
 	"github.com/rajasatyajit/SupplyChain/internal/logger"
 	"github.com/rajasatyajit/SupplyChain/internal/models"
@@ -25,11 +26,12 @@ type Handler struct {
 	gitCommit   string
 	startTime   time.Time
 	adminSecret string
+	billingCfg  config.BillingConfig
 }
 
 // NewHandler creates a new API handler
 func NewHandler(store store.Store, db *database.DB, adminSecret, version, buildTime, gitCommit string) *Handler {
-	return 6Handler{
+	return &Handler{
 		store:       store,
 		db:          db,
 		version:     version,
@@ -37,6 +39,7 @@ func NewHandler(store store.Store, db *database.DB, adminSecret, version, buildT
 		gitCommit:   gitCommit,
 		startTime:   time.Now(),
 		adminSecret: adminSecret,
+		billingCfg:  func() config.BillingConfig { if db != nil && db.Config() != nil { return db.Config().Billing } ; return config.BillingConfig{} }(),
 	}
 }
 
@@ -58,10 +61,11 @@ func (h *Handler) RegisterRoutes(r *chi.Mux) {
 		r.Get("/usage", h.usageHandler)
 		r.Get("/usage/timeseries", h.usageTimeseriesHandler)
 
-		// Billing endpoints (will be implemented with Stripe)
+		// Billing endpoints (multi-provider)
 		r.Post("/billing/checkout-session", h.createCheckoutSession)
 		r.Post("/billing/portal-session", h.createPortalSession)
 		r.Post("/billing/webhook", h.stripeWebhook)
+		r.Post("/billing/razorpay/webhook", h.razorpayWebhook)
 
 		// System info
 		r.Get("/version", h.versionHandler)

@@ -4,6 +4,8 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 -- Apply initial schema
 \i db/migrations/0001_auth_billing_usage.sql
 \i db/migrations/0002_plans.sql
+\i db/migrations/0003_usage_timeseries.sql
+\i db/migrations/0004_webhooks.sql
 
 -- Database initialization script for SupplyChain application
 

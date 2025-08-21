@@ -12,6 +12,13 @@ components:
       scheme: bearer
       bearerFormat: APIKey
   schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error: { type: string }
+        message: { type: string }
+        timestamp: { type: string, format: date-time }
+        request_id: { type: string }
     Alert:
       type: object
       properties:
@@ -31,6 +38,50 @@ components:
         severity: { type: string, enum: [low, medium, high] }
         sentiment: { type: string, enum: [negative, neutral, positive] }
         confidence: { type: number, format: double }
+    UsageSummary:
+      type: object
+      properties:
+        account_id: { type: string }
+        period_start: { type: string, format: date-time }
+        period_end: { type: string, format: date-time }
+        total: { type: integer }
+        per_endpoint:
+          type: object
+          additionalProperties: { type: integer }
+    TimeSeriesPoint:
+      type: object
+      properties:
+        bucket: { type: string, format: date-time }
+        requests: { type: integer }
+    TimeSeriesResponse:
+      type: object
+      properties:
+        bucket: { type: string, enum: [day, hour] }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/TimeSeriesPoint' }
+    AdminAggregateItem:
+      type: object
+      properties:
+        account_id: { type: string }
+        api_key_id: { type: string }
+        period_start: { type: string, format: date-time }
+        period_end: { type: string, format: date-time }
+        total_requests: { type: integer }
+    AdminAggregatesResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AdminAggregateItem' }
+        count: { type: integer }
+        total: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
 paths:
   /v1/health:
     get:
@@ -66,6 +117,28 @@ paths:
       responses:
         '200':
           description: Usage summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UsageSummary' }
+              examples:
+                sample:
+                  value:
+                    account_id: acc_123
+                    period_start: '2025-08-01T00:00:00Z'
+                    period_end: '2025-09-01T00:00:00Z'
+                    total: 1234
+                    per_endpoint:
+                      GET:/v1/alerts: 1200
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '429':
+          description: Too Many Requests
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
   /v1/usage/timeseries:
     get:
       summary: Get usage time series for current account
@@ -82,7 +155,32 @@ paths:
           name: end
           schema: { type: string, format: date }
       responses:
-        '200': { description: Time series }
+        '200':
+          description: Time series
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TimeSeriesResponse' }
+              examples:
+                sample:
+                  value:
+                    bucket: day
+                    start: '2025-08-01T00:00:00Z'
+                    end: '2025-09-01T00:00:00Z'
+                    data:
+                      - bucket: '2025-08-01T00:00:00Z'
+                        requests: 100
+                      - bucket: '2025-08-02T00:00:00Z'
+                        requests: 120
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '429':
+          description: Too Many Requests
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
   /v1/admin/usage:
     get:
       summary: Admin usage timeseries
@@ -100,7 +198,11 @@ paths:
           name: end
           schema: { type: string, format: date }
       responses:
-        '200': { description: Admin usage timeseries }
+        '200':
+          description: Admin usage timeseries
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TimeSeriesResponse' }
   /v1/admin/usage/aggregates:
     get:
       summary: Admin usage aggregates
@@ -124,7 +226,11 @@ paths:
           name: offset
           schema: { type: integer, minimum: 0 }
       responses:
-        '200': { description: Admin usage aggregates }
+        '200':
+          description: Admin usage aggregates
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAggregatesResponse' }
   /v1/billing/checkout-session:
     post:
       summary: Create Stripe Checkout session
@@ -143,7 +249,12 @@ paths:
     post:
       summary: Stripe webhook receiver
       responses:
-        '501': { description: Not Implemented }
+        '200': { description: OK }
+  /v1/billing/razorpay/webhook:
+    post:
+      summary: Razorpay webhook receiver
+      responses:
+        '200': { description: OK }
   /v1/alerts:
     get:
       summary: List alerts
@@ -182,4 +293,12 @@ paths:
                       $ref: '#/components/schemas/Alert'
                   count:
                     type: integer
+        '429':
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 

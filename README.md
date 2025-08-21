@@ -1,5 +1,6 @@
 # SupplyChain Alert System
 
+
 A production-ready Go application for monitoring and analyzing supply chain disruptions through real-time alert processing.
 
 ## Features
@@ -54,6 +55,8 @@ make run
 ```
 
 ## API Endpoints
+
+- Detailed reference: see docs/API.md
 
 ### Health Checks
 - `GET /health` - Basic health check

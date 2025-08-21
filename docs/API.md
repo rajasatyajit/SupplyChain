@@ -2,6 +2,8 @@
 
 ## Overview
 
+This document complements the README and focuses on auth, billing, rate limits, and example requests/responses.
+
 The SupplyChain API provides access to supply chain disruption alerts and monitoring data. The API follows REST principles and returns JSON responses.
 
 ## Base URL
@@ -21,6 +23,13 @@ Headers:
 Trials: New accounts receive 10 API calls total across endpoints before requiring a paid plan.
 
 ## Rate Limiting
+
+The service enforces per-endpoint RPM and per-account monthly quotas using Redis when configured, with in-memory fallback. Trial accounts without an active/trialing subscription are limited to 10 requests total across endpoints.
+
+Response headers include:
+- X-RateLimit-Limit, X-RateLimit-Reset, X-RateLimit-Remaining
+- X-Quota-Limit, X-Quota-Remaining, X-Quota-Reset
+- Retry-After on 429
 
 Rate limits are per API key and per endpoint. Plans define both per-minute burst and monthly quotas.
 - Lite: 20 requests/min per endpoint, up to 450,000 requests/month per API key
@@ -148,6 +157,86 @@ Retrieve a specific alert by ID.
   "confidence": 0.92,
   "created_at": "2024-01-15T10:30:00Z",
   "updated_at": "2024-01-15T10:30:00Z"
+}
+```
+
+## Billing
+
+### Checkout
+
+Stripe (default):
+- POST /v1/billing/checkout-session
+- Body: {"plan_code":"lite|pro","interval":"month|year","overage_enabled":true|false}
+- Response: {"provider":"stripe","url":"https://checkout.stripe.com/..."}
+
+Razorpay (India or ?provider=razorpay):
+- POST /v1/billing/checkout-session?provider=razorpay
+- Body: {"plan_code":"lite|pro","interval":"month|year"}
+- Response: {"provider":"razorpay","params": {"key":"...","order_id":"order_...","amount":49900,"currency":"INR","notes":{...}}}
+
+### Portal
+- POST /v1/billing/portal-session (Stripe only)
+- Response: {"url":"..."}
+
+### Webhooks
+Stripe:
+- POST /v1/billing/webhook
+- Header: Stripe-Signature, secret=STRIPE_WEBHOOK_SECRET
+- Events: checkout.session.completed, customer.subscription.created|updated, invoice.finalized (reports overage usage), customer.subscription.deleted
+
+Razorpay:
+- POST /v1/billing/razorpay/webhook
+- Header: X-Razorpay-Signature (HMAC SHA256 of raw body)
+- Events handled: payment.captured, order.paid (activates subscription using notes.account_id, notes.plan_code)
+
+### Examples
+Stripe checkout request:
+```
+POST /v1/billing/checkout-session
+Authorization: Bearer sk_test
+Content-Type: application/json
+
+{"plan_code":"lite","interval":"month","overage_enabled":true}
+```
+Stripe checkout response:
+```
+{"provider":"stripe","url":"https://checkout.stripe.com/c/session/abc"}
+```
+
+Razorpay checkout request:
+```
+POST /v1/billing/checkout-session?provider=razorpay
+Authorization: Bearer sk_test_in
+Content-Type: application/json
+
+{"plan_code":"lite","interval":"month"}
+```
+Razorpay checkout response:
+```
+{
+  "provider":"razorpay",
+  "params":{
+    "key":"rzp_test_123",
+    "order_id":"order_abc",
+    "amount":49900,
+    "currency":"INR",
+    "notes":{"account_id":"acc_123","plan_code":"lite","interval":"month"}
+  }
+}
+```
+
+Razorpay webhook example (order.paid):
+```
+{
+  "event":"order.paid",
+  "payload":{
+    "order":{
+      "entity":{
+        "id":"order_abc",
+        "notes":{"account_id":"acc_123","plan_code":"lite"}
+      }
+    }
+  }
 }
 ```
 

@@ -17,7 +17,7 @@ import (
 func TestHealthEndpoints(t *testing.T) {
 	// Setup
 	store := store.NewInMemoryStore()
-	handler := api.NewHandler(store, "test", "test-time", "test-commit")
+handler := api.NewHandler(store, nil, "", "test", "test-time", "test-commit")
 
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
@@ -55,7 +55,7 @@ func TestHealthEndpoints(t *testing.T) {
 func TestAlertsEndpoint(t *testing.T) {
 	// Setup
 	store := store.NewInMemoryStore()
-	handler := api.NewHandler(store, "test", "test-time", "test-commit")
+handler := api.NewHandler(store, nil, "", "test", "test-time", "test-commit")
 
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
