@@ -21,7 +21,7 @@ func Logging(next http.Handler) http.Handler {
 
 		// Add request ID to context
 		requestID := middleware.GetReqID(r.Context())
-		ctx := context.WithValue(r.Context(), "request_id", requestID)
+		ctx := context.WithValue(r.Context(), "request_id", requestID) //nolint:staticcheck // string context key used intentionally for cross-package simplicity
 		r = r.WithContext(ctx)
 
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)

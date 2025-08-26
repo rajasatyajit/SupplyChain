@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Key format: sc_{env}_{id}_{secret}
+// Key format: sc.{env}.{id}.{secret}
 // - id: 12 url-safe chars
 // - secret: 32 url-safe chars
 func GenerateAPIKey(env string) (id string, rawKey string, secretHash []byte, err error) {
@@ -17,7 +17,8 @@ func GenerateAPIKey(env string) (id string, rawKey string, secretHash []byte, er
 	if id == "" || secret == "" {
 		return "", "", nil, fmt.Errorf("failed to generate token")
 	}
-	rawKey = fmt.Sprintf("sc_%s_%s_%s", env, id, secret)
+	// Use '.' as a separator to avoid conflicts with '_' present in URL-safe base64 tokens
+	rawKey = fmt.Sprintf("sc.%s.%s.%s", env, id, secret)
 	hash, err := bcrypt.GenerateFromPassword([]byte(secret), bcrypt.DefaultCost)
 	if err != nil {
 		return "", "", nil, err
@@ -27,7 +28,7 @@ func GenerateAPIKey(env string) (id string, rawKey string, secretHash []byte, er
 
 // ParseAPIKey splits into env, id, secret
 func ParseAPIKey(raw string) (env string, id string, secret string, ok bool) {
-	parts := strings.Split(raw, "_")
+	parts := strings.Split(raw, ".")
 	if len(parts) != 4 || parts[0] != "sc" {
 		return "", "", "", false
 	}

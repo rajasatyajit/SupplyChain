@@ -1,44 +1,3 @@
-# SupplyChain Makefile additions
-.PHONY: test test-integration lint fmt coverage coverage-html
-
-GO ?= go
-
-lint:
-	$(GO) vet ./...
-
-fmt:
-	@test -z "$(shell gofmt -l .)" || (echo 'Please run gofmt on the following files:' && gofmt -l . && exit 1)
-
-test:
-	$(GO) test ./... -v
-
-coverage:
-	$(GO) test ./... -coverprofile=coverage.out -covermode=atomic
-	@$(GO) tool cover -func=coverage.out | tail -n 1
-
-coverage-html: coverage
-	@$(GO) tool cover -html=coverage.out -o coverage.html
-	@echo "Open coverage.html in your browser"
-
-test-integration:
-	@echo "Requires DATABASE_URL and REDIS_URL"
-	$(GO) test ./test/integration -v
-
-## itest-local: Run integration tests locally with docker-compose override
-.PHONY: itest-local
-itest-local:
-	@echo "Starting local Postgres and Redis via docker-compose override..."
-	@docker-compose -f docker-compose.override.test.yml up -d
-	@sleep 4
-	@echo "Running integration tests..."
-	@DATABASE_URL=postgres://supplychain:password@localhost:5432/supplychain?sslmode=disable \
-	REDIS_URL=redis://localhost:6379 \
-	$(GO) test ./test/integration -v || (docker-compose -f docker-compose.override.test.yml down; exit 1)
-	@echo "Shutting down services..."
-	@docker-compose -f docker-compose.override.test.yml down
-	@echo "Integration tests completed"
-
-# Makefile for SupplyChain Microservice
 
 # Variables
 APP_NAME := supplychain
@@ -75,7 +34,10 @@ TEST_TIMEOUT := 30s
 INTEGRATION_TEST_TIMEOUT := 60s
 
 # Linting variables
-GOLANGCI_LINT_VERSION := v1.55.2
+GOLANGCI_LINT_VERSION := v2.3.0
+BIN_DIR := .bin
+GOLANGCI_BIN := $(BIN_DIR)/golangci-lint
+GOLANGCI_STAMP := $(BIN_DIR)/.golangci-lint.$(GOLANGCI_LINT_VERSION)
 
 # Default target
 .DEFAULT_GOAL := help
@@ -215,36 +177,34 @@ lint: fmt vet lint-golangci
 
 ## lint-install: Install linting tools
 .PHONY: lint-install
-lint-install:
-	@echo "Installing linting tools..."
-	@if ! command -v golangci-lint >/dev/null 2>&1; then \
-		echo "Installing golangci-lint $(GOLANGCI_LINT_VERSION)..."; \
-		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin $(GOLANGCI_LINT_VERSION); \
-	fi
+lint-install: $(GOLANGCI_STAMP)
 	@echo "Linting tools installed"
+
+# Ensure pinned golangci-lint is installed locally
+$(GOLANGCI_STAMP):
+	@echo "Ensuring golangci-lint $(GOLANGCI_LINT_VERSION) is installed..."
+	@mkdir -p $(BIN_DIR)
+	@installed="$$({ test -x '$(GOLANGCI_BIN)' && $(GOLANGCI_BIN) version 2>/dev/null || true; } | grep -Eo 'v[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1)"; \
+	if [ "$$installed" != "$(GOLANGCI_LINT_VERSION)" ]; then \
+		echo "Installing golangci-lint $(GOLANGCI_LINT_VERSION) to $(BIN_DIR) (found: $$installed)"; \
+		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(BIN_DIR) $(GOLANGCI_LINT_VERSION); \
+	else \
+		echo "golangci-lint $$installed already present"; \
+	fi; \
+	touch $(GOLANGCI_STAMP)
 
 ## lint-golangci: Run golangci-lint
 .PHONY: lint-golangci
-lint-golangci:
+lint-golangci: $(GOLANGCI_STAMP)
 	@echo "Running golangci-lint..."
 	@mkdir -p $(REPORTS_DIR)
-	@if command -v golangci-lint >/dev/null 2>&1; then \
-		golangci-lint run --out-format=colored-line-number,checkstyle:$(REPORTS_DIR)/golangci-lint.xml ./...; \
-	else \
-		echo "golangci-lint not installed. Run 'make lint-install' first"; \
-		exit 1; \
-	fi
+@GOWORK=off GOFLAGS="-mod=mod" $(GOLANGCI_BIN) run --modules-download-mode=mod --no-config -E govet -E errcheck -E ineffassign -E staticcheck -E unused ./...
 
 ## lint-fix: Run linting with auto-fix
 .PHONY: lint-fix
-lint-fix: fmt
+lint-fix: fmt $(GOLANGCI_STAMP)
 	@echo "Running golangci-lint with auto-fix..."
-	@if command -v golangci-lint >/dev/null 2>&1; then \
-		golangci-lint run --fix ./...; \
-	else \
-		echo "golangci-lint not installed. Run 'make lint-install' first"; \
-		exit 1; \
-	fi
+	@$(GOLANGCI_BIN) run --fix ./...
 
 ## fmt: Format Go code
 .PHONY: fmt
@@ -398,6 +358,14 @@ k8s-status:
 k8s-logs:
 	@echo "Viewing application logs..."
 	kubectl logs -l app=$(APP_NAME) --tail=100 -f
+
+## tools-check: Check availability of external tools
+.PHONY: tools-check
+tools-check:
+	@echo "Checking external tools..."
+	@command -v docker >/dev/null 2>&1 && echo "docker: OK" || echo "docker: MISSING"
+	@command -v kubectl >/dev/null 2>&1 && echo "kubectl: OK" || echo "kubectl: MISSING"
+	@command -v golangci-lint >/dev/null 2>&1 && echo "golangci-lint: OK" || echo "golangci-lint: MISSING"
 
 ## k8s-delete: Delete Kubernetes deployment
 .PHONY: k8s-delete

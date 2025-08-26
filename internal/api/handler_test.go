@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-chi/chi/v5"
+	chi "github.com/go-chi/chi/v5"
 	"github.com/rajasatyajit/SupplyChain/internal/models"
 )
 
@@ -67,7 +67,7 @@ func (m *MockStore) SetHealthError(err error) {
 
 func TestHandler_HealthEndpoints(t *testing.T) {
 	store := NewMockStore()
-handler := NewHandler(store, nil, "", "test-version", "test-build-time", "test-commit")
+	handler := NewHandler(store, nil, "", "test-version", "test-build-time", "test-commit")
 
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
@@ -145,7 +145,7 @@ func TestHandler_ReadinessCheck_Unhealthy(t *testing.T) {
 	store := NewMockStore()
 	store.SetHealthError(errors.New("database connection failed"))
 
-handler := NewHandler(store, nil, "", "test-version", "test-build-time", "test-commit")
+	handler := NewHandler(store, nil, "", "test-version", "test-build-time", "test-commit")
 
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
@@ -188,7 +188,7 @@ func TestHandler_GetAlerts(t *testing.T) {
 		t.Fatalf("Failed to setup test data: %v", err)
 	}
 
-handler := NewHandler(store, nil, "", "test-version", "test-build-time", "test-commit")
+	handler := NewHandler(store, nil, "", "test-version", "test-build-time", "test-commit")
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
 
@@ -288,7 +288,7 @@ func TestHandler_GetAlert(t *testing.T) {
 		t.Fatalf("Failed to setup test data: %v", err)
 	}
 
-handler := NewHandler(store, nil, "", "test-version", "test-build-time", "test-commit")
+	handler := NewHandler(store, nil, "", "test-version", "test-build-time", "test-commit")
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
 
@@ -348,7 +348,7 @@ handler := NewHandler(store, nil, "", "test-version", "test-build-time", "test-c
 }
 
 func TestHandler_ParseAlertQuery(t *testing.T) {
-handler := NewHandler(NewMockStore(), nil, "", "test", "test", "test")
+	handler := NewHandler(NewMockStore(), nil, "", "test", "test", "test")
 
 	tests := []struct {
 		name        string

@@ -2,17 +2,16 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
-	"fmt"
-	"github.com/go-chi/chi/v5"
-	middlewares "github.com/rajasatyajit/SupplyChain/internal/middleware"
-
+	chi "github.com/go-chi/chi/v5"
 	"github.com/rajasatyajit/SupplyChain/config"
 	"github.com/rajasatyajit/SupplyChain/internal/database"
 	"github.com/rajasatyajit/SupplyChain/internal/logger"
+	middlewares "github.com/rajasatyajit/SupplyChain/internal/middleware"
 	"github.com/rajasatyajit/SupplyChain/internal/models"
 	"github.com/rajasatyajit/SupplyChain/internal/store"
 )
@@ -39,7 +38,12 @@ func NewHandler(store store.Store, db *database.DB, adminSecret, version, buildT
 		gitCommit:   gitCommit,
 		startTime:   time.Now(),
 		adminSecret: adminSecret,
-		billingCfg:  func() config.BillingConfig { if db != nil && db.Config() != nil { return db.Config().Billing } ; return config.BillingConfig{} }(),
+		billingCfg: func() config.BillingConfig {
+			if db != nil && db.Config() != nil {
+				return db.Config().Billing
+			}
+			return config.BillingConfig{}
+		}(),
 	}
 }
 
@@ -256,7 +260,10 @@ func (h *Handler) parseAlertQuery(r *http.Request) (models.AlertQuery, error) {
 func (h *Handler) writeJSONResponse(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		// Best effort: we can't write another response here
+		logger.Error("failed to encode json response", "error", err)
+	}
 }
 
 // writeErrorResponse writes a standardized error response

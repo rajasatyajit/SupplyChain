@@ -13,7 +13,9 @@ import (
 
 // StartAggregator periodically flushes Redis usage into Postgres usage_aggregates
 func StartAggregator(ctx context.Context, db *database.DB, rl *ratelimit.Manager) {
-	if db == nil || !db.IsConfigured() || rl == nil { return }
+	if db == nil || !db.IsConfigured() || rl == nil {
+		return
+	}
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
@@ -32,13 +34,18 @@ func StartAggregator(ctx context.Context, db *database.DB, rl *ratelimit.Manager
 func FlushOnce(ctx context.Context, db *database.DB, rl *ratelimit.Manager) {
 	repo := auth.NewRepository(db)
 	pairs, err := repo.ListAllActiveAPIKeys(ctx)
-	if err != nil { logger.Error("usage flush: list keys failed", "error", err); return }
+	if err != nil {
+		logger.Error("usage flush: list keys failed", "error", err)
+		return
+	}
 	now := time.Now().UTC()
 	periodStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
-	periodEnd := periodStart.AddDate(0,1,0)
+	periodEnd := periodStart.AddDate(0, 1, 0)
 	for _, p := range pairs {
 		total, err := rl.GetQuota(ctx, p.KeyID, now)
-		if err != nil { continue }
+		if err != nil {
+			continue
+		}
 		ep, _ := rl.ListEndpointUsage(ctx, p.KeyID, now)
 		b, _ := json.Marshal(ep)
 		_ = db.Exec(ctx, `

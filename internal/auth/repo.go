@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/jackc/pgx/v5"
+	pgx "github.com/jackc/pgx/v5"
 	"github.com/rajasatyajit/SupplyChain/internal/database"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -18,10 +18,10 @@ func NewRepository(db *database.DB) *Repository {
 }
 
 type APIKeyRecord struct {
-	AccountID string
-	APIKeyID  string
-	PlanCode  string
-	ClientType string
+	AccountID      string
+	APIKeyID       string
+	PlanCode       string
+	ClientType     string
 	OverageEnabled bool
 }
 
@@ -45,12 +45,12 @@ func (r *Repository) LookupAPIKey(ctx context.Context, rawKey string) (*APIKeyRe
 		WHERE k.key_prefix = $1 AND k.status = 'active'
 	`, id)
 	var (
-		keyID string
-		accountID string
-		hash []byte
+		keyID      string
+		accountID  string
+		hash       []byte
 		clientType string
-		planCode string
-		overage bool
+		planCode   string
+		overage    bool
 	)
 	scan := row.(interface{ Scan(dest ...any) error })
 	if err := scan.Scan(&keyID, &accountID, &hash, &clientType, &planCode, &overage); err != nil {
@@ -60,26 +60,37 @@ func (r *Repository) LookupAPIKey(ctx context.Context, rawKey string) (*APIKeyRe
 		return nil, errors.New("invalid api key")
 	}
 	return &APIKeyRecord{
-		AccountID: accountID,
-		APIKeyID:  keyID,
-		PlanCode:  planCode,
-		ClientType: clientType,
+		AccountID:      accountID,
+		APIKeyID:       keyID,
+		PlanCode:       planCode,
+		ClientType:     clientType,
 		OverageEnabled: overage,
 	}, nil
 }
 
 // ListAPIKeyIDsByAccount returns key_prefix (id) list for an account
 func (r *Repository) ListAPIKeyIDsByAccount(ctx context.Context, accountID string) ([]string, error) {
-	if r == nil || r.db == nil || !r.db.IsConfigured() { return nil, errors.New("db not configured") }
+	if r == nil || r.db == nil || !r.db.IsConfigured() {
+		return nil, errors.New("db not configured")
+	}
 	rows, err := r.db.Query(ctx, "SELECT key_prefix FROM api_keys WHERE account_id=$1 AND status='active'", accountID)
-	if err != nil { return nil, err }
-	type scanner interface{ Next() bool; Scan(dest ...any) error }
+	if err != nil {
+		return nil, err
+	}
+	type scanner interface {
+		Next() bool
+		Scan(dest ...any) error
+	}
 	s, ok := rows.(scanner)
-	if !ok { return nil, errors.New("invalid rows") }
+	if !ok {
+		return nil, errors.New("invalid rows")
+	}
 	var ids []string
 	for s.Next() {
 		var id string
-		if err := s.Scan(&id); err == nil { ids = append(ids, id) }
+		if err := s.Scan(&id); err == nil {
+			ids = append(ids, id)
+		}
 	}
 	return ids, nil
 }
@@ -108,21 +119,32 @@ func (r *Repository) RevokeAPIKey(ctx context.Context, keyID string) error {
 	if r == nil || r.db == nil || !r.db.IsConfigured() {
 		return errors.New("db not configured")
 	}
-return r.db.Exec(ctx, `UPDATE api_keys SET status='revoked' WHERE key_prefix=$1`, keyID)
+	return r.db.Exec(ctx, `UPDATE api_keys SET status='revoked' WHERE key_prefix=$1`, keyID)
 }
 
 // ListAllActiveAPIKeys returns tuples of (account_id, key_prefix)
 func (r *Repository) ListAllActiveAPIKeys(ctx context.Context) ([]struct{ AccountID, KeyID string }, error) {
-	if r == nil || r.db == nil || !r.db.IsConfigured() { return nil, errors.New("db not configured") }
+	if r == nil || r.db == nil || !r.db.IsConfigured() {
+		return nil, errors.New("db not configured")
+	}
 	rows, err := r.db.Query(ctx, "SELECT account_id, key_prefix FROM api_keys WHERE status='active'")
-	if err != nil { return nil, err }
-	type scanner interface{ Next() bool; Scan(dest ...any) error }
+	if err != nil {
+		return nil, err
+	}
+	type scanner interface {
+		Next() bool
+		Scan(dest ...any) error
+	}
 	s, ok := rows.(scanner)
-	if !ok { return nil, errors.New("invalid rows") }
+	if !ok {
+		return nil, errors.New("invalid rows")
+	}
 	var list []struct{ AccountID, KeyID string }
 	for s.Next() {
 		var a, k string
-		if err := s.Scan(&a, &k); err == nil { list = append(list, struct{AccountID, KeyID string}{a,k}) }
+		if err := s.Scan(&a, &k); err == nil {
+			list = append(list, struct{ AccountID, KeyID string }{a, k})
+		}
 	}
 	return list, nil
 }

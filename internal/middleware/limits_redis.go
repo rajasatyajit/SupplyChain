@@ -11,7 +11,9 @@ import (
 var subscriptionActiveCheck func(ctx interface{}, accountID string) bool
 
 // SetSubscriptionChecker injects a function to check if an account has an active/trialing subscription
-func SetSubscriptionChecker(f func(ctx interface{}, accountID string) bool) { subscriptionActiveCheck = f }
+func SetSubscriptionChecker(f func(ctx interface{}, accountID string) bool) {
+	subscriptionActiveCheck = f
+}
 
 // RedisRateQuotaEnforcer uses a Redis-backed manager; if nil, it no-ops and calls next
 func RedisRateQuotaEnforcer(m *ratelimit.Manager) func(http.Handler) http.Handler {
@@ -56,10 +58,10 @@ func RedisRateQuotaEnforcer(m *ratelimit.Manager) func(http.Handler) http.Handle
 			if !active {
 				trialUsed, _ := m.GetTrialUsage(r.Context(), p.AccountID)
 				if trialUsed >= 10 {
-				w.Header().Set("Retry-After", "3600")
-				write429(w)
-				return
-			}
+					w.Header().Set("Retry-After", "3600")
+					write429(w)
+					return
+				}
 			}
 
 			// Proceed
@@ -77,7 +79,9 @@ func RedisRateQuotaEnforcer(m *ratelimit.Manager) func(http.Handler) http.Handle
 			w.Header().Set("X-RateLimit-Reset", itoaNoAlloc(reset))
 
 			remaining := monthly - q
-			if remaining < 0 { remaining = 0 }
+			if remaining < 0 {
+				remaining = 0
+			}
 			w.Header().Set("X-Quota-Limit", itoaNoAlloc(monthly))
 			w.Header().Set("X-Quota-Remaining", itoaNoAlloc(remaining))
 			w.Header().Set("X-Quota-Reset", secondsUntil(time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC)))

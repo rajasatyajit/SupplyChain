@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-chi/chi/v5"
+	chi "github.com/go-chi/chi/v5"
 	"github.com/rajasatyajit/SupplyChain/internal/api"
 	"github.com/rajasatyajit/SupplyChain/internal/models"
 	"github.com/rajasatyajit/SupplyChain/internal/store"
@@ -17,7 +17,7 @@ import (
 func TestHealthEndpoints(t *testing.T) {
 	// Setup
 	store := store.NewInMemoryStore()
-handler := api.NewHandler(store, nil, "", "test", "test-time", "test-commit")
+	handler := api.NewHandler(store, nil, "", "test", "test-time", "test-commit")
 
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)
@@ -55,7 +55,7 @@ handler := api.NewHandler(store, nil, "", "test", "test-time", "test-commit")
 func TestAlertsEndpoint(t *testing.T) {
 	// Setup
 	store := store.NewInMemoryStore()
-handler := api.NewHandler(store, nil, "", "test", "test-time", "test-commit")
+	handler := api.NewHandler(store, nil, "", "test", "test-time", "test-commit")
 
 	r := chi.NewRouter()
 	handler.RegisterRoutes(r)

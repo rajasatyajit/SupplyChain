@@ -8,20 +8,20 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/go-chi/chi/v5"
+	chi "github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rajasatyajit/SupplyChain/config"
 	"github.com/rajasatyajit/SupplyChain/internal/api"
+	"github.com/rajasatyajit/SupplyChain/internal/auth"
 	"github.com/rajasatyajit/SupplyChain/internal/classifier"
 	"github.com/rajasatyajit/SupplyChain/internal/database"
 	"github.com/rajasatyajit/SupplyChain/internal/geocoder"
 	"github.com/rajasatyajit/SupplyChain/internal/logger"
-	"github.com/rajasatyajit/SupplyChain/internal/auth"
 	"github.com/rajasatyajit/SupplyChain/internal/metrics"
 	middlewares "github.com/rajasatyajit/SupplyChain/internal/middleware"
 	"github.com/rajasatyajit/SupplyChain/internal/pipeline"
-	"github.com/rajasatyajit/SupplyChain/internal/store"
 	"github.com/rajasatyajit/SupplyChain/internal/ratelimit"
+	"github.com/rajasatyajit/SupplyChain/internal/store"
 	"github.com/rajasatyajit/SupplyChain/internal/usage"
 )
 
@@ -116,7 +116,9 @@ func main() {
 			row := db.QueryRow(context.Background(), "SELECT 1 FROM subscriptions WHERE account_id=$1 AND status IN ('active','trialing') LIMIT 1", accountID)
 			var one int
 			if s, ok := row.(interface{ Scan(dest ...any) error }); ok {
-				if err := s.Scan(&one); err == nil { return true }
+				if err := s.Scan(&one); err == nil {
+					return true
+				}
 			}
 			return false
 		})
@@ -125,10 +127,7 @@ func main() {
 		r.Use(middlewares.RateQuotaEnforcer())
 	}
 
-	// Wrap admin subrouter with admin secret if configured
-	if cfg.Admin.AdminSecret != "" {
-		// create a new subrouter for admin to apply middleware; here we rely on route-level protection in handlers
-	}
+	// Note: Admin endpoints are protected via header checks within handlers.
 
 	// Initialize API handlers
 	apiHandler := api.NewHandler(alertStore, db, cfg.Admin.AdminSecret, Version, BuildTime, GitCommit)

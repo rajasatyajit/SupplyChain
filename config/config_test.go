@@ -19,19 +19,19 @@ func TestLoad(t *testing.T) {
 	defer func() {
 		for key, value := range originalVars {
 			if value == "" {
-				os.Unsetenv(key)
+				_ = os.Unsetenv(key)
 			} else {
-				os.Setenv(key, value)
+				_ = os.Setenv(key, value)
 			}
 		}
 	}()
 
 	t.Run("Default configuration", func(t *testing.T) {
 		// Clear env vars
-		os.Unsetenv("SERVER_PORT")
-		os.Unsetenv("DATABASE_URL")
-		os.Unsetenv("LOG_LEVEL")
-		os.Unsetenv("METRICS_ENABLED")
+		_ = os.Unsetenv("SERVER_PORT")
+		_ = os.Unsetenv("DATABASE_URL")
+		_ = os.Unsetenv("LOG_LEVEL")
+		_ = os.Unsetenv("METRICS_ENABLED")
 
 		cfg, err := Load()
 		if err != nil {
@@ -56,10 +56,10 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("Custom configuration", func(t *testing.T) {
-		os.Setenv("SERVER_PORT", "9000")
-		os.Setenv("DATABASE_URL", "postgres://test:test@localhost/test")
-		os.Setenv("LOG_LEVEL", "debug")
-		os.Setenv("METRICS_ENABLED", "false")
+		_ = os.Setenv("SERVER_PORT", "9000")
+		_ = os.Setenv("DATABASE_URL", "postgres://test:test@localhost/test")
+		_ = os.Setenv("LOG_LEVEL", "debug")
+		_ = os.Setenv("METRICS_ENABLED", "false")
 
 		cfg, err := Load()
 		if err != nil {
@@ -167,8 +167,8 @@ func TestValidate(t *testing.T) {
 
 func TestGetEnvHelpers(t *testing.T) {
 	t.Run("getEnvInt", func(t *testing.T) {
-		os.Setenv("TEST_INT", "42")
-		defer os.Unsetenv("TEST_INT")
+		_ = os.Setenv("TEST_INT", "42")
+		defer func() { _ = os.Unsetenv("TEST_INT") }()
 
 		result := getEnvInt("TEST_INT", 10)
 		if result != 42 {
@@ -182,8 +182,8 @@ func TestGetEnvHelpers(t *testing.T) {
 	})
 
 	t.Run("getEnvBool", func(t *testing.T) {
-		os.Setenv("TEST_BOOL", "true")
-		defer os.Unsetenv("TEST_BOOL")
+		_ = os.Setenv("TEST_BOOL", "true")
+		defer func() { _ = os.Unsetenv("TEST_BOOL") }()
 
 		result := getEnvBool("TEST_BOOL", false)
 		if !result {

@@ -33,9 +33,9 @@ type usage struct {
 
 type rateQuotaState struct {
 	mu        sync.Mutex
-	buckets   map[string]*bucket      // key: apiKeyID|METHOD|PATH
-	usageByAK map[string]*usage       // apiKeyID -> usage
-	usageByAC map[string]*usage       // accountID -> usage (for trial)
+	buckets   map[string]*bucket // key: apiKeyID|METHOD|PATH
+	usageByAK map[string]*usage  // apiKeyID -> usage
+	usageByAC map[string]*usage  // accountID -> usage (for trial)
 }
 
 var rqState = &rateQuotaState{
@@ -132,13 +132,17 @@ func RateQuotaEnforcer() func(http.Handler) http.Handler {
 
 			// Set headers
 			remainingRate := rpm - b.count
-			if remainingRate < 0 { remainingRate = 0 }
+			if remainingRate < 0 {
+				remainingRate = 0
+			}
 			w.Header().Set("X-RateLimit-Limit", itoaNoAlloc(rpm))
 			w.Header().Set("X-RateLimit-Remaining", itoaNoAlloc(remainingRate))
 			w.Header().Set("X-RateLimit-Reset", itoaNoAlloc(60-int(time.Since(b.windowStart).Seconds())))
 
 			remainingQuota := monthly - u.total
-			if remainingQuota < 0 { remainingQuota = 0 }
+			if remainingQuota < 0 {
+				remainingQuota = 0
+			}
 			w.Header().Set("X-Quota-Limit", itoaNoAlloc(monthly))
 			w.Header().Set("X-Quota-Remaining", itoaNoAlloc(remainingQuota))
 			w.Header().Set("X-Quota-Reset", itoaNoAlloc(int(periodEnd.Sub(now).Seconds())))
@@ -149,7 +153,9 @@ func RateQuotaEnforcer() func(http.Handler) http.Handler {
 
 func secondsUntil(t time.Time) string {
 	d := int(time.Until(t).Seconds())
-	if d < 0 { d = 0 }
+	if d < 0 {
+		d = 0
+	}
 	return itoaNoAlloc(d)
 }
 

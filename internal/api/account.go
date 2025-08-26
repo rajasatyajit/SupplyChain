@@ -12,8 +12,8 @@ import (
 var rlOnce sync.Once
 var rlGlobal *ratelimit.Manager
 
-func setRateLimiter(m *ratelimit.Manager) { rlOnce.Do(func(){ rlGlobal = m }) }
-func getRateLimiter() *ratelimit.Manager { return rlGlobal }
+func setRateLimiter(m *ratelimit.Manager) { rlOnce.Do(func() { rlGlobal = m }) }
+func getRateLimiter() *ratelimit.Manager  { return rlGlobal }
 
 // meHandler returns plan and period info for the calling API key
 func (h *Handler) meHandler(w http.ResponseWriter, r *http.Request) {
@@ -27,8 +27,8 @@ func (h *Handler) meHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 1, 0)
 	resp := map[string]any{
-		"account_id": p.AccountID,
-		"plan":       p.PlanCode,
+		"account_id":      p.AccountID,
+		"plan":            p.PlanCode,
 		"overage_enabled": p.OverageEnabled,
 		"period_start":    start,
 		"period_end":      end,
@@ -46,9 +46,19 @@ func (h *Handler) limitsHandler(w http.ResponseWriter, r *http.Request) {
 	// Placeholder limits; will be loaded from plan entitlements later
 	limits := map[string]any{
 		"per_minute": map[string]int{
-			"/v1/alerts:GET": func() int { if p.PlanCode == "pro" { return 60 } ; return 20 }(),
+			"/v1/alerts:GET": func() int {
+				if p.PlanCode == "pro" {
+					return 60
+				}
+				return 20
+			}(),
 		},
-		"monthly_quota": func() int { if p.PlanCode == "pro" { return 1350000 } ; return 450000 }(),
+		"monthly_quota": func() int {
+			if p.PlanCode == "pro" {
+				return 1350000
+			}
+			return 450000
+		}(),
 	}
 	h.writeJSONResponse(w, http.StatusOK, limits)
 }
@@ -71,7 +81,7 @@ func (h *Handler) usageHandler(w http.ResponseWriter, r *http.Request) {
 		perEndpoint, _ = mgr.ListEndpointUsage(r.Context(), p.APIKeyID, start)
 	}
 	resp := map[string]any{
-		"account_id":  p.AccountID,
+		"account_id":   p.AccountID,
 		"period_start": start,
 		"period_end":   start.AddDate(0, 1, 0),
 		"total":        total,

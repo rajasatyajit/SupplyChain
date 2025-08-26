@@ -114,12 +114,14 @@ func (m *Manager) GetEndpointQuota(ctx context.Context, apiKeyID, method, path s
 func (m *Manager) GetTrialUsage(ctx context.Context, accountID string) (int, error) {
 	k := fmt.Sprintf("trial:%s:used", accountID)
 	val, err := m.redis.Get(ctx, k).Int()
-	if err == redis.Nil { return 0, nil }
+	if err == redis.Nil {
+		return 0, nil
+	}
 	return val, err
 }
 func (m *Manager) IncTrialUsage(ctx context.Context, accountID string) error {
 	k := fmt.Sprintf("trial:%s:used", accountID)
-return m.redis.Incr(ctx, k).Err()
+	return m.redis.Incr(ctx, k).Err()
 }
 
 // ListEndpointUsage scans Redis for endpoint counters for a key in current month
@@ -129,7 +131,9 @@ func (m *Manager) ListEndpointUsage(ctx context.Context, apiKeyID string, now ti
 	var cursor uint64
 	for {
 		keys, cur, err := m.redis.Scan(ctx, cursor, pattern, 100).Result()
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		cursor = cur
 		for _, k := range keys {
 			v, err := m.redis.Get(ctx, k).Int()
@@ -141,7 +145,9 @@ func (m *Manager) ListEndpointUsage(ctx context.Context, apiKeyID string, now ti
 				}
 			}
 		}
-		if cursor == 0 { break }
+		if cursor == 0 {
+			break
+		}
 	}
 	return res, nil
 }
@@ -151,7 +157,9 @@ func (m *Manager) SumQuotas(ctx context.Context, apiKeyIDs []string, now time.Ti
 	total := 0
 	for _, id := range apiKeyIDs {
 		q, err := m.GetQuota(ctx, id, now)
-		if err != nil { return 0, err }
+		if err != nil {
+			return 0, err
+		}
 		total += q
 	}
 	return total, nil

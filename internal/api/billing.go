@@ -2,7 +2,7 @@ package api
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/rajasatyajit/SupplyChain/internal/auth"
 	"github.com/rajasatyajit/SupplyChain/internal/billing"
+	"github.com/rajasatyajit/SupplyChain/internal/logger"
 	stripe "github.com/stripe/stripe-go/v76"
 	"github.com/stripe/stripe-go/v76/usagerecord"
 	"github.com/stripe/stripe-go/v76/webhook"
@@ -18,32 +19,43 @@ import (
 // createCheckoutSession starts a Checkout session using the appropriate provider (Stripe default, Razorpay for India/domestic)
 func (h *Handler) createCheckoutSession(w http.ResponseWriter, r *http.Request) {
 	p := auth.GetPrincipal(r.Context())
-	if p == nil { h.writeErrorResponse(w, r, http.StatusUnauthorized, "unauthorized"); return }
+	if p == nil {
+		h.writeErrorResponse(w, r, http.StatusUnauthorized, "unauthorized")
+		return
+	}
 	var body struct {
 		PlanCode string `json:"plan_code"` // lite | pro
-		Interval string `json:"interval"` // month | year
+		Interval string `json:"interval"`  // month | year
 		Overage  bool   `json:"overage_enabled"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		h.writeErrorResponse(w, r, http.StatusBadRequest, "invalid json")
 		return
 	}
-	if body.Interval == "" { body.Interval = "month" }
+	if body.Interval == "" {
+		body.Interval = "month"
+	}
 
 	// Provider selection: explicit ?provider=razorpay or header X-Country=IN routes to Razorpay; otherwise Stripe
 	provider := strings.ToLower(r.URL.Query().Get("provider"))
 	country := strings.ToUpper(r.Header.Get("X-Country"))
-useRazorpay := provider == "razorpay" || country == "IN"
+	useRazorpay := provider == "razorpay" || country == "IN"
 	prov := selectProvider(h, useRazorpay)
 	resp, err := prov.CreateCheckout(r.Context(), p.AccountID, strings.ToLower(body.PlanCode), strings.ToLower(body.Interval), body.Overage)
-	if err != nil { h.writeErrorResponse(w, r, http.StatusInternalServerError, err.Error()); return }
+	if err != nil {
+		h.writeErrorResponse(w, r, http.StatusInternalServerError, err.Error())
+		return
+	}
 	h.writeJSONResponse(w, http.StatusOK, resp)
 }
 
 // createPortalSession creates a Stripe Billing Portal session
 func (h *Handler) createPortalSession(w http.ResponseWriter, r *http.Request) {
 	p := auth.GetPrincipal(r.Context())
-	if p == nil { h.writeErrorResponse(w, r, http.StatusUnauthorized, "unauthorized"); return }
+	if p == nil {
+		h.writeErrorResponse(w, r, http.StatusUnauthorized, "unauthorized")
+		return
+	}
 	// Fetch stripe_customer_id for the account
 	row := h.db.QueryRow(r.Context(), "SELECT stripe_customer_id FROM subscriptions WHERE account_id=$1 AND status IN ('active','trialing') ORDER BY updated_at DESC LIMIT 1", p.AccountID)
 	var custID string
@@ -63,7 +75,9 @@ func (h *Handler) createPortalSession(w http.ResponseWriter, r *http.Request) {
 var meterUsageFunc = meteredUsageCreate
 
 // SetMeterUsageFunc allows tests to override the metered usage creation function
-func SetMeterUsageFunc(f func(subscriptionItemID string, quantity int64) (string, error)) { meterUsageFunc = f }
+func SetMeterUsageFunc(f func(subscriptionItemID string, quantity int64) (string, error)) {
+	meterUsageFunc = f
+}
 
 // GetMeterUsageFunc returns the current metered usage creation function
 func GetMeterUsageFunc() func(string, int64) (string, error) { return meterUsageFunc }
@@ -75,14 +89,16 @@ func meteredUsageCreate(subscriptionItemID string, quantity int64) (string, erro
 		Timestamp:        stripe.Int64(time.Now().Unix()),
 		Action:           stripe.String(string(stripe.UsageRecordActionIncrement)),
 	}
-ur, err := usagerecord.New(params)
-	if err != nil { return "", err }
+	ur, err := usagerecord.New(params)
+	if err != nil {
+		return "", err
+	}
 	return ur.ID, nil
 }
 
 // stripeWebhook receives Stripe events
 func (h *Handler) stripeWebhook(w http.ResponseWriter, r *http.Request) {
-	payload, _ := ioutil.ReadAll(r.Body)
+	payload, _ := io.ReadAll(r.Body)
 	sig := r.Header.Get("Stripe-Signature")
 	secret := os.Getenv("STRIPE_WEBHOOK_SECRET")
 	event, err := webhook.ConstructEvent(payload, sig, secret)
@@ -97,11 +113,17 @@ func (h *Handler) stripeWebhook(w http.ResponseWriter, r *http.Request) {
 			accountID := ""
 			if sess.Subscription != nil {
 				// Store customer and subscription IDs
-				h.db.Exec(r.Context(), "UPDATE subscriptions SET stripe_customer_id=$1, stripe_subscription_id=$2, status='active', updated_at=now() WHERE account_id=$3", sess.Customer.ID, sess.Subscription.ID, sess.ClientReferenceID)
+				err := h.db.Exec(r.Context(), "UPDATE subscriptions SET stripe_customer_id=$1, stripe_subscription_id=$2, status='active', updated_at=now() WHERE account_id=$3", sess.Customer.ID, sess.Subscription.ID, sess.ClientReferenceID)
+				if err != nil {
+					logger.Error("failed to update subscription after checkout", "error", err)
+				}
 			} else {
 				accountID = sess.ClientReferenceID
 				// Create subscription row if missing
-				h.db.Exec(r.Context(), "INSERT INTO subscriptions(account_id, plan_code, status, created_at, updated_at) VALUES ($1, $2, 'trialing', now(), now()) ON CONFLICT (account_id) DO NOTHING", accountID, sess.Metadata["plan_code"])
+				err := h.db.Exec(r.Context(), "INSERT INTO subscriptions(account_id, plan_code, status, created_at, updated_at) VALUES ($1, $2, 'trialing', now(), now()) ON CONFLICT (account_id) DO NOTHING", accountID, sess.Metadata["plan_code"])
+				if err != nil {
+					logger.Error("failed to insert subscription row", "error", err)
+				}
 			}
 		}
 	case "customer.subscription.created", "customer.subscription.updated":
@@ -114,21 +136,27 @@ func (h *Handler) stripeWebhook(w http.ResponseWriter, r *http.Request) {
 			status := string(sub.Status)
 			// We need the account_id from metadata if present
 			acct := sub.Metadata["account_id"]
-			h.db.Exec(r.Context(), "UPDATE subscriptions SET plan_code=$1, overage_enabled=$2, status=$3, current_period_start=to_timestamp($4), current_period_end=to_timestamp($5), updated_at=now() WHERE stripe_subscription_id=$6 OR account_id=$7", planCode, over, status, periodStart, periodEnd, sub.ID, acct)
+			err := h.db.Exec(r.Context(), "UPDATE subscriptions SET plan_code=$1, overage_enabled=$2, status=$3, current_period_start=to_timestamp($4), current_period_end=to_timestamp($5), updated_at=now() WHERE stripe_subscription_id=$6 OR account_id=$7", planCode, over, status, periodStart, periodEnd, sub.ID, acct)
+			if err != nil {
+				logger.Error("failed to update subscription", "error", err)
+			}
 		}
-case "invoice.finalized":
+	case "invoice.finalized":
 		// On invoice finalization, report overage usage if enabled
 		var inv stripe.Invoice
 		if err := json.Unmarshal(event.Data.Raw, &inv); err == nil {
 			// Find the subscription id and items
 			subID := ""
-			if inv.Subscription != nil { subID = inv.Subscription.ID }
+			if inv.Subscription != nil {
+				subID = inv.Subscription.ID
+			}
 			if subID != "" {
 				// Find account_id and plan_code from subscription metadata if present
 				// We need account_id to sum quotas across keys
 				// Fetch account_id from DB via subscription id
 				row := h.db.QueryRow(r.Context(), "SELECT account_id, plan_code, overage_enabled FROM subscriptions WHERE stripe_subscription_id=$1", subID)
-				var acctID, planCode string; var over bool
+				var acctID, planCode string
+				var over bool
 				_ = scanRow(row, &acctID, &planCode, &over)
 				if over {
 					// Sum usage for all keys of this account from Redis and compute overage
@@ -144,9 +172,11 @@ case "invoice.finalized":
 						if overUnits > 0 {
 							// find metered item price on the subscription
 							var meteredItemID string
-overPrice := h.db.Config().Billing.PriceOverageMetered
-if overPrice == "" { overPrice = os.Getenv("STRIPE_PRICE_OVERAGE_METERED") }
-	for _, li := range inv.Lines.Data {
+							overPrice := h.db.Config().Billing.PriceOverageMetered
+							if overPrice == "" {
+								overPrice = os.Getenv("STRIPE_PRICE_OVERAGE_METERED")
+							}
+							for _, li := range inv.Lines.Data {
 								if li.Price != nil && li.Price.ID == overPrice {
 									if li.SubscriptionItem != nil {
 										meteredItemID = li.SubscriptionItem.ID
@@ -167,7 +197,9 @@ if overPrice == "" { overPrice = os.Getenv("STRIPE_PRICE_OVERAGE_METERED") }
 	case "customer.subscription.deleted":
 		var sub stripe.Subscription
 		if err := json.Unmarshal(event.Data.Raw, &sub); err == nil {
-			h.db.Exec(r.Context(), "UPDATE subscriptions SET status='canceled', updated_at=now() WHERE stripe_subscription_id=$1", sub.ID)
+			if err := h.db.Exec(r.Context(), "UPDATE subscriptions SET status='canceled', updated_at=now() WHERE stripe_subscription_id=$1", sub.ID); err != nil {
+				logger.Error("failed to mark subscription canceled", "error", err)
+			}
 		}
 	}
 	w.WriteHeader(http.StatusOK)
@@ -176,7 +208,7 @@ if overPrice == "" { overPrice = os.Getenv("STRIPE_PRICE_OVERAGE_METERED") }
 // helper: select provider based on routing flag
 func selectProvider(h *Handler, useRazorpay bool) billing.Provider {
 	if useRazorpay {
-return billing.NewRazorpay(h.billingCfg)
+		return billing.NewRazorpay(h.billingCfg)
 	}
 	// default Stripe
 	svc := billing.NewService(h.db.Config().Billing, h.db)
@@ -185,13 +217,13 @@ return billing.NewRazorpay(h.billingCfg)
 
 // razorpayWebhook receives Razorpay events with HMAC verification
 func (h *Handler) razorpayWebhook(w http.ResponseWriter, r *http.Request) {
-	body, _ := ioutil.ReadAll(r.Body)
-rp := billing.NewRazorpay(h.billingCfg)
+	body, _ := io.ReadAll(r.Body)
+	rp := billing.NewRazorpay(h.billingCfg)
 	if err := rp.VerifyWebhook(r, body); err != nil {
 		h.writeErrorResponse(w, r, http.StatusBadRequest, "invalid signature")
 		return
 	}
-typ, payload, err := rp.ParseWebhook(body)
+	typ, payload, err := rp.ParseWebhook(body)
 	if err != nil {
 		h.writeErrorResponse(w, r, http.StatusBadRequest, "invalid payload")
 		return

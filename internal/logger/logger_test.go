@@ -33,8 +33,8 @@ func TestInitAndWithContext(t *testing.T) {
 	}
 
 	// WithContext should return a non-nil logger and be safe to use
-	ctx := context.WithValue(context.Background(), "request_id", "req-123")
-	ctx = context.WithValue(ctx, "trace_id", "trace-abc")
+	ctx := context.WithValue(context.Background(), "request_id", "req-123") //nolint:staticcheck
+	ctx = context.WithValue(ctx, "trace_id", "trace-abc")                   //nolint:staticcheck
 	l := WithContext(ctx)
 	if l == nil {
 		t.Fatalf("WithContext returned nil")

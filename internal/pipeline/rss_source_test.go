@@ -55,7 +55,7 @@ func TestRSSSource_Fetch(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/rss+xml")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(rssContent))
+		_, _ = w.Write([]byte(rssContent))
 	}))
 	defer server.Close()
 
@@ -140,7 +140,7 @@ func TestRSSSource_FetchInvalidXML(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/rss+xml")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("invalid xml content"))
+		_, _ = w.Write([]byte("invalid xml content"))
 	}))
 	defer server.Close()
 

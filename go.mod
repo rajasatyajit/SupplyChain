@@ -8,7 +8,7 @@ require (
 	github.com/stripe/stripe-go/v76 v76.24.0
 )
 
-go 1.22.5
+go 1.22
 
 require (
 	github.com/google/uuid v1.6.0

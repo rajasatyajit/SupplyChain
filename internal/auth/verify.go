@@ -48,4 +48,6 @@ func VerifyAPIKey(r *http.Request, key string, clientType string) (*Principal, e
 type dbKey struct{}
 
 // WithDB attaches the database to request context for auth lookups
-func WithDB(ctx context.Context, db *database.DB) context.Context { return context.WithValue(ctx, dbKey{}, db) }
+func WithDB(ctx context.Context, db *database.DB) context.Context {
+	return context.WithValue(ctx, dbKey{}, db)
+}

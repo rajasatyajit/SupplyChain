@@ -57,10 +57,10 @@ type MetricsConfig struct {
 }
 
 type AuthConfig struct {
-	RequireAPIKeys   bool
-	KeyHeader        string // default: Authorization Bearer <key>
-	AgentHeaderName  string // optional: X-Client-Type
-	EnableAgentHeader bool  // if true, require AgentHeaderName to be one of [agent,human]
+	RequireAPIKeys    bool
+	KeyHeader         string // default: Authorization Bearer <key>
+	AgentHeaderName   string // optional: X-Client-Type
+	EnableAgentHeader bool   // if true, require AgentHeaderName to be one of [agent,human]
 }
 
 type RedisConfig struct {
@@ -74,28 +74,28 @@ type AdminConfig struct {
 }
 
 type BillingConfig struct {
-	StripePublicKey string
-	StripeSecretKey string
-	StripeWebhookSecret string
-	PriceLiteMonthly string
-	PriceLiteAnnual  string
-	PriceProMonthly  string
-	PriceProAnnual   string
-	PriceOverageMetered string
-	CheckoutSuccessURL string
-	CheckoutCancelURL  string
-	PortalReturnURL    string
+	StripePublicKey           string
+	StripeSecretKey           string
+	StripeWebhookSecret       string
+	PriceLiteMonthly          string
+	PriceLiteAnnual           string
+	PriceProMonthly           string
+	PriceProAnnual            string
+	PriceOverageMetered       string
+	CheckoutSuccessURL        string
+	CheckoutCancelURL         string
+	PortalReturnURL           string
 	OveragePricePerRequestUSD float64 // e.g., 0.000033 for 0.0033 cents
 
 	// Razorpay (optional) for India domestic rails
-	RazorpayKeyID     string
-	RazorpayKeySecret string
-	RazorpayWebhookSecret string
-	RazorpayCurrency string // default INR
+	RazorpayKeyID                  string
+	RazorpayKeySecret              string
+	RazorpayWebhookSecret          string
+	RazorpayCurrency               string // default INR
 	RazorpayAmountLiteMonthlyPaisa int64
-	RazorpayAmountLiteAnnualPaisa int64
-	RazorpayAmountProMonthlyPaisa int64
-	RazorpayAmountProAnnualPaisa int64
+	RazorpayAmountLiteAnnualPaisa  int64
+	RazorpayAmountProMonthlyPaisa  int64
+	RazorpayAmountProAnnualPaisa   int64
 }
 
 // Load loads configuration from environment variables with sensible defaults
@@ -147,23 +147,23 @@ func Load() (*Config, error) {
 			AdminSecret: getEnv("ADMIN_SECRET", ""),
 		},
 		Billing: BillingConfig{
-			StripePublicKey:        getEnv("STRIPE_PUBLIC_KEY", ""),
-			StripeSecretKey:        getEnv("STRIPE_SECRET_KEY", ""),
-			StripeWebhookSecret:    getEnv("STRIPE_WEBHOOK_SECRET", ""),
-			PriceLiteMonthly:       getEnv("STRIPE_PRICE_LITE_MONTHLY", ""),
-			PriceLiteAnnual:        getEnv("STRIPE_PRICE_LITE_ANNUAL", ""),
-			PriceProMonthly:        getEnv("STRIPE_PRICE_PRO_MONTHLY", ""),
-			PriceProAnnual:         getEnv("STRIPE_PRICE_PRO_ANNUAL", ""),
-			PriceOverageMetered:    getEnv("STRIPE_PRICE_OVERAGE_METERED", ""),
-			CheckoutSuccessURL:     getEnv("STRIPE_CHECKOUT_SUCCESS_URL", "https://dashboard.example.com/billing/success"),
-			CheckoutCancelURL:      getEnv("STRIPE_CHECKOUT_CANCEL_URL", "https://dashboard.example.com/billing/cancel"),
-			PortalReturnURL:        getEnv("STRIPE_PORTAL_RETURN_URL", "https://dashboard.example.com/billing"),
+			StripePublicKey:           getEnv("STRIPE_PUBLIC_KEY", ""),
+			StripeSecretKey:           getEnv("STRIPE_SECRET_KEY", ""),
+			StripeWebhookSecret:       getEnv("STRIPE_WEBHOOK_SECRET", ""),
+			PriceLiteMonthly:          getEnv("STRIPE_PRICE_LITE_MONTHLY", ""),
+			PriceLiteAnnual:           getEnv("STRIPE_PRICE_LITE_ANNUAL", ""),
+			PriceProMonthly:           getEnv("STRIPE_PRICE_PRO_MONTHLY", ""),
+			PriceProAnnual:            getEnv("STRIPE_PRICE_PRO_ANNUAL", ""),
+			PriceOverageMetered:       getEnv("STRIPE_PRICE_OVERAGE_METERED", ""),
+			CheckoutSuccessURL:        getEnv("STRIPE_CHECKOUT_SUCCESS_URL", "https://dashboard.example.com/billing/success"),
+			CheckoutCancelURL:         getEnv("STRIPE_CHECKOUT_CANCEL_URL", "https://dashboard.example.com/billing/cancel"),
+			PortalReturnURL:           getEnv("STRIPE_PORTAL_RETURN_URL", "https://dashboard.example.com/billing"),
 			OveragePricePerRequestUSD: getEnvFloat("BILLING_OVERAGE_PRICE_PER_REQUEST_USD", 0.000033),
 
-			RazorpayKeyID:          getEnv("RAZORPAY_KEY_ID", ""),
-			RazorpayKeySecret:      getEnv("RAZORPAY_KEY_SECRET", ""),
-			RazorpayWebhookSecret:  getEnv("RAZORPAY_WEBHOOK_SECRET", ""),
-			RazorpayCurrency:       getEnv("RAZORPAY_CURRENCY", "INR"),
+			RazorpayKeyID:                  getEnv("RAZORPAY_KEY_ID", ""),
+			RazorpayKeySecret:              getEnv("RAZORPAY_KEY_SECRET", ""),
+			RazorpayWebhookSecret:          getEnv("RAZORPAY_WEBHOOK_SECRET", ""),
+			RazorpayCurrency:               getEnv("RAZORPAY_CURRENCY", "INR"),
 			RazorpayAmountLiteMonthlyPaisa: getEnvInt64("RAZORPAY_AMOUNT_LITE_MONTHLY_PAISA", 49900),
 			RazorpayAmountLiteAnnualPaisa:  getEnvInt64("RAZORPAY_AMOUNT_LITE_ANNUAL_PAISA", 499000),
 			RazorpayAmountProMonthlyPaisa:  getEnvInt64("RAZORPAY_AMOUNT_PRO_MONTHLY_PAISA", 199900),
