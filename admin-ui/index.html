@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>SupplyChain Admin Usage Dashboard</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    input, select { margin: 4px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 6px; font-size: 12px; }
+    .row { margin-bottom: 8px; }
+    .warn { color: #a00; }
+  </style>
+</head>
+<body>
+  <h1>Admin Usage Dashboard</h1>
+  <div class="row">
+    <label>Base URL: <input id="base" size="40" value="/v1"/></label>
+  </div>
+  <div class="row">
+    <label>Admin Secret: <input id="secret" type="password" size="40" placeholder="X-Admin-Secret"/></label>
+  </div>
+  <div class="row">
+    <label>Account ID (optional): <input id="account" size="40"/></label>
+    <label>Bucket: 
+      <select id="bucket">
+        <option value="day">day</option>
+        <option value="hour">hour</option>
+      </select>
+    </label>
+    <label>Start (YYYY-MM-DD): <input id="start"/></label>
+    <label>End (YYYY-MM-DD): <input id="end"/></label>
+    <button id="btnTs">Fetch Timeseries</button>
+  </div>
+  <div class="row">
+    <label>Aggregates Limit: <input id="limit" value="50" size="5"/></label>
+    <label>Offset: <input id="offset" value="0" size="5"/></label>
+    <button id="btnAgg">Fetch Aggregates</button>
+  </div>
+  <div id="msg" class="warn"></div>
+  <h3>Timeseries</h3>
+  <table id="tsTable"><thead><tr><th>Bucket</th><th>Requests</th></tr></thead><tbody></tbody></table>
+  <h3>Aggregates</h3>
+  <table id="aggTable"><thead><tr><th>Account</th><th>Key</th><th>Period Start</th><th>Period End</th><th>Total</th></tr></thead><tbody></tbody></table>
+<script>
+async function fetchJSON(url, secret){
+  const resp = await fetch(url, { headers: { 'X-Admin-Secret': secret } });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.json();
+}
+function qs(params){
+  const u = new URLSearchParams();
+  Object.entries(params).forEach(([k,v])=>{ if (v) u.set(k,v); });
+  return u.toString();
+}
+function setMsg(m){ document.getElementById('msg').textContent = m || ''; }
+
+document.getElementById('btnTs').onclick = async () => {
+  setMsg('');
+  const base = document.getElementById('base').value || '/v1';
+  const secret = document.getElementById('secret').value;
+  const account = document.getElementById('account').value;
+  const bucket = document.getElementById('bucket').value;
+  const start = document.getElementById('start').value;
+  const end = document.getElementById('end').value;
+  const params = { bucket, start, end };
+  if (account) params.account_id = account;
+  try {
+    const data = await fetchJSON(`${base}/admin/usage?${qs(params)}`, secret);
+    const tbody = document.querySelector('#tsTable tbody');
+    tbody.innerHTML='';
+    (data.data||[]).forEach(p=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${new Date(p.bucket).toISOString()}</td><td>${p.requests}</td>`;
+      tbody.appendChild(tr);
+    });
+  } catch(e){ setMsg(e.message); }
+};
+
+document.getElementById('btnAgg').onclick = async () => {
+  setMsg('');
+  const base = document.getElementById('base').value || '/v1';
+  const secret = document.getElementById('secret').value;
+  const account = document.getElementById('account').value;
+  const start = document.getElementById('start').value;
+  const end = document.getElementById('end').value;
+  const limit = document.getElementById('limit').value;
+  const offset = document.getElementById('offset').value;
+  const params = { account_id: account, start, end, limit, offset };
+  try {
+    const resp = await fetchJSON(`${base}/admin/usage/aggregates?${qs(params)}`, secret);
+    const tbody = document.querySelector('#aggTable tbody');
+    tbody.innerHTML='';
+    (resp.items||[]).forEach(it=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${it.account_id}</td><td>${it.api_key_id}</td><td>${new Date(it.period_start).toISOString()}</td><td>${new Date(it.period_end).toISOString()}</td><td>${it.total_requests}</td>`;
+      tbody.appendChild(tr);
+    });
+  } catch(e){ setMsg(e.message); }
+};
+</script>
+</body>
+</html>
